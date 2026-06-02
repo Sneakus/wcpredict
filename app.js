@@ -1,5 +1,5 @@
 const SUPABASE_URL = 'https://qkjkvqyoulctqatdultz.supabase.co'
-const SUPABASE_ANON_KEY = 'sb_publishable_g9FBfTrg9BC-EcMBVVShRQ_BjRaHFkI'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFramt2cXlvdWxjdHFhdGR1bHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDkwNzksImV4cCI6MjA5NTk4NTA3OX0.ojhzBHpmxqNZ3xphaojhHn0oO9YJT0QRuN634xgLZ3k'
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -30,11 +30,11 @@ function getFlagEmoji(iso) {
 }
 
 async function loadNations() {
-  const { data } = await sb.from('nations').select('*').order('name')
-  if (!data) return
-  nations = data
+  const { data, error } = await sb.from('nations').select('*').order('name')
+  if (error) { console.error('loadNations error:', error); return }
+  nations = data || []
   const sel = document.getElementById('country-select')
-  data.forEach(n => {
+  nations.forEach(n => {
     const opt = document.createElement('option')
     opt.value = n.iso2
     opt.textContent = `${n.flag_emoji} ${n.name}`
@@ -43,18 +43,19 @@ async function loadNations() {
 }
 
 async function loadPredictionCount() {
-  const { count } = await supabase
+  const { count, error } = await sb
     .from('predictions')
     .select('*', { count: 'exact', head: true })
+  if (error) { console.error('loadPredictionCount error:', error); return }
   document.getElementById('prediction-count').textContent =
-    count ? `${count.toLocaleString()} predictions so far` : ''
+    count ? `${count.toLocaleString()} predictions so far` : '0 predictions so far'
 }
 
 async function loadNationData() {
-  const { data } = await supabase
+  const { data, error } = await sb
     .from('predictions')
     .select('nation_iso2, tournament_winner, match_id, predicted_winner, score')
-
+  if (error) { console.error('loadNationData error:', error); return }
   if (!data) return
 
   const byNation = {}
@@ -97,13 +98,14 @@ async function loadTodayMatches() {
   const end = new Date(today)
   end.setHours(23, 59, 59, 999)
 
-  const { data } = await supabase
+  const { data, error } = await sb
     .from('matches')
     .select('*')
     .gte('kickoff_at', start.toISOString())
     .lte('kickoff_at', end.toISOString())
     .order('kickoff_at')
 
+  if (error) { console.error('loadTodayMatches error:', error); return }
   todayMatches = data || []
   renderMatches()
 }
@@ -111,7 +113,7 @@ async function loadTodayMatches() {
 function renderMatches() {
   const el = document.getElementById('matches-list')
   if (todayMatches.length === 0) {
-    el.innerHTML = '<p class="loading">No matches today — check back tomorrow.</p>'
+    el.innerHTML = '<p class="loading">No matches today — check back on June 11th for the opening game.</p>'
     return
   }
   el.innerHTML = ''
@@ -121,16 +123,15 @@ function renderMatches() {
       <span class="match-time">${time}</span>
       <span class="match-teams">${m.home_team} vs ${m.away_team}</span>
       <div class="match-pick">
-        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
-        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
-        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
+        <button class="pick-btn" data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
+        <button class="pick-btn" data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
+        <button class="pick-btn" data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
       </div>
     </div>`
   })
 }
 
 function selectPick(btn) {
-  if (btn.classList.contains('locked')) return
   const mi = btn.dataset.match
   document.querySelectorAll(`.pick-btn[data-match="${mi}"]`).forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
@@ -142,14 +143,13 @@ async function submitPredictions() {
   if (!iso2) { alert('Please select your country first'); return }
   if (Object.keys(picks).length === 0) { alert('Make at least one match prediction first'); return }
 
-  const tournamentWinner = document.getElementById('tournament-select')?.value || null
   const btn = document.getElementById('submit-btn')
   btn.disabled = true
   btn.textContent = 'Submitting...'
 
   const payload = {
     nation_iso2: iso2,
-    tournament_winner: tournamentWinner,
+    tournament_winner: null,
     match_picks: picks,
   }
 
@@ -250,10 +250,9 @@ function getMapColor(countryName) {
 
 function updateMapColors() {
   if (!svgPaths) return
-  const defaultFill = '#1e1e1e'
   svgPaths.attr('fill', d => {
     const name = d.properties && d.properties.name
-    return getMapColor(name) || defaultFill
+    return getMapColor(name) || '#1e1e1e'
   })
 }
 
@@ -355,4 +354,3 @@ async function init() {
 }
 
 init()
-
