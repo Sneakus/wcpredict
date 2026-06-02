@@ -1,7 +1,7 @@
 const SUPABASE_URL = 'https://qkjkvqyoulctqatdultz.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_g9FBfTrg9BC-EcMBVVShRQ_BjRaHFkI'
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const TEAMS = [
   { name: 'Brazil',    iso: 'BR', color: '#639922' },
