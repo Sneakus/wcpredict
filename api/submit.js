@@ -9,9 +9,9 @@ const supabase = createClient(
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { nation_iso2, tournament_winner, match_picks } = req.body
+  const { nation_iso2, tournament_winner, match_picks, fingerprint } = req.body
 
-  if (!nation_iso2 || !match_picks || Object.keys(match_picks).length === 0) {
+  if (!nation_iso2) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
 
@@ -19,46 +19,76 @@ export default async function handler(req, res) {
   const cfCountry = req.headers['cf-ipcountry'] || null
   const countryOverride = cfCountry && cfCountry !== nation_iso2
 
+  const fingerprintHash = fingerprint
+    ? crypto.createHash('sha256').update(fingerprint).digest('hex')
+    : null
+
   const rows = []
 
-  for (const [match_id, predicted_winner] of Object.entries(match_picks)) {
-    const ipHash = crypto.createHash('sha256').update(rawIp + match_id).digest('hex')
+  if (match_picks && Object.keys(match_picks).length > 0) {
+    for (const [match_id, predicted_winner] of Object.entries(match_picks)) {
+      const ipHash = crypto.createHash('sha256').update(rawIp + match_id).digest('hex')
 
-    const { data: match } = await supabase
-      .from('matches')
-      .select('locked')
-      .eq('id', match_id)
-      .single()
+      const { data: match } = await supabase
+        .from('matches')
+        .select('locked, kickoff_at')
+        .eq('id', match_id)
+        .single()
 
-    if (!match || match.locked) continue
+      if (!match || match.locked || new Date(match.kickoff_at) <= new Date()) continue
+
+      const { data: existing } = await supabase
+        .from('predictions')
+        .select('id')
+        .eq('ip_hash', ipHash)
+        .eq('match_id', match_id)
+        .maybeSingle()
+
+      if (existing) continue
+
+      rows.push({
+        match_id,
+        nation_iso2,
+        predicted_winner,
+        tournament_winner: tournament_winner || null,
+        ip_hash: ipHash,
+        fingerprint_hash: fingerprintHash,
+        cf_country: cfCountry,
+        country_override: countryOverride,
+        flagged: countryOverride,
+      })
+    }
+  } else if (tournament_winner) {
+    // Tournament winner only — no match picks
+    const ipHash = crypto.createHash('sha256').update(rawIp + 'tournament').digest('hex')
 
     const { data: existing } = await supabase
       .from('predictions')
       .select('id')
       .eq('ip_hash', ipHash)
-      .eq('match_id', match_id)
+      .is('match_id', null)
       .maybeSingle()
 
-    if (existing) continue
-
-    rows.push({
-      match_id,
-      nation_iso2,
-      predicted_winner,
-      tournament_winner: tournament_winner || null,
-      ip_hash: ipHash,
-      cf_country: cfCountry,
-      country_override: countryOverride,
-      flagged: countryOverride,
-    })
+    if (!existing) {
+      rows.push({
+        match_id: null,
+        nation_iso2,
+        predicted_winner: tournament_winner,
+        tournament_winner,
+        ip_hash: ipHash,
+        fingerprint_hash: fingerprintHash,
+        cf_country: cfCountry,
+        country_override: countryOverride,
+        flagged: countryOverride,
+      })
+    }
   }
 
   if (rows.length === 0) {
-    return res.status(429).json({ error: 'Already predicted for all matches today, or matches are locked.' })
+    return res.status(429).json({ error: 'Already predicted, or all matches are locked.' })
   }
 
   const { error } = await supabase.from('predictions').insert(rows)
-
   if (error) return res.status(500).json({ error: error.message })
 
   await supabase.rpc('increment_nation_count', { iso: nation_iso2 })

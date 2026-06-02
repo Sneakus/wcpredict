@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.umd.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -44,16 +45,16 @@
     </div>
 
     <div id="predict-panel">
-  <div id="tournament-pick-panel">
-    <div class="panel-title">Who wins the 2026 World Cup?</div>
-    <div id="tournament-teams"></div>
-    <div id="tournament-selected" class="hidden">Your pick: <span id="tournament-selected-name"></span></div>
-  </div>
-  <div id="match-predict-panel">
-    <div class="panel-title">Today's matches — make your predictions</div>
-    <div id="matches-list"><p class="loading">Loading matches...</p></div>
-  </div>
-</div>
+      <div id="tournament-pick-panel">
+        <div class="panel-title">Who wins the 2026 World Cup?</div>
+        <div id="tournament-teams"></div>
+        <div id="tournament-selected" class="hidden">Your pick: <span id="tournament-selected-name"></span></div>
+      </div>
+      <div id="match-predict-panel">
+        <div class="panel-title">Today's matches — make your predictions</div>
+        <div id="matches-list"><p class="loading">Loading matches...</p></div>
+      </div>
+    </div>
 
     <div id="submit-wrap">
       <select id="country-select"><option value="">Your country...</option></select>
