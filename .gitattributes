@@ -1,0 +1,18 @@
+# Keep source files as UTF-8 text (prevents UTF-16 corruption on Windows)
+* text=auto
+
+*.js        text eol=lf working-tree-encoding=UTF-8
+*.html      text eol=lf working-tree-encoding=UTF-8
+*.css       text eol=lf working-tree-encoding=UTF-8
+*.json      text eol=lf working-tree-encoding=UTF-8
+*.md        text eol=lf working-tree-encoding=UTF-8
+*.geojson   text eol=lf working-tree-encoding=UTF-8
+
+api/**      text eol=lf working-tree-encoding=UTF-8
+
+# Binary assets
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.ico       binary
