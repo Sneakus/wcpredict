@@ -16,12 +16,13 @@ const TEAMS = [
 const TEAM_COLORS = {}
 TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 
+// Maps world-atlas topology country names to nation iso2 codes
 const COUNTRY_NAME_TO_ISO = {
   'England': 'GB-ENG',
   'Scotland': 'GB-SCT',
   'Wales': 'GB-WLS',
   'Northern Ireland': 'GB-NIR',
-  'United Kingdom': 'GB-ENG',
+  'United Kingdom': null, // suppressed — rendered via UK overlay
   'United States of America': 'US',
   'United States': 'US',
   'Russia': 'RU',
@@ -50,9 +51,12 @@ const COUNTRY_NAME_TO_ISO = {
   'Taiwan': null,
 }
 
+// Numeric ISO 3166-1 codes from world-atlas for UK nations
+// world-atlas uses numeric codes, GB = 826
+const UK_NUMERIC = '826'
+
 let currentView = 'wc'
 let svgPaths = null
-let ukPaths = null
 let nationData = {}
 let todayMatches = []
 let nations = []
@@ -290,23 +294,14 @@ function getColorForIso(iso) {
 }
 
 function updateMapColors() {
-  if (svgPaths) {
-    svgPaths.attr('fill', d => {
-      const name = d.properties && d.properties.name
-      if (!name) return '#1e1e1e'
-      // suppress the raw UK blob — UK is rendered via ukPaths
-      if (name === 'United Kingdom') return '#1e1e1e'
-      const iso = resolveIso(name)
-      return getColorForIso(iso) || '#1e1e1e'
-    })
-  }
-  if (ukPaths) {
-    ukPaths.attr('fill', d => {
-      const name = d.properties && d.properties.name
-      const iso = resolveIso(name)
-      return getColorForIso(iso) || '#1e1e1e'
-    })
-  }
+  if (!svgPaths) return
+  svgPaths.attr('fill', d => {
+    const name = d.properties && d.properties.name
+    if (!name) return '#1e1e1e'
+    const iso = resolveIso(name)
+    if (iso === null && COUNTRY_NAME_TO_ISO.hasOwnProperty(name)) return '#1e1e1e'
+    return getColorForIso(iso) || '#1e1e1e'
+  })
 }
 
 function buildTooltipWC(nd) {
@@ -346,30 +341,20 @@ function buildTooltipMatchday(nd) {
   }).join('')
 }
 
-function attachTooltip(selection, svgEl, mapWrap, width) {
+function showTooltip(event, name, mapWrap, width) {
+  const iso = resolveIso(name)
+  const nd = iso ? nationData[iso] : null
   const tooltip = document.getElementById('tooltip')
-  selection
-    .on('mousemove', function(event, d) {
-      const name = d.properties && d.properties.name
-      if (!name) return
-      const iso = resolveIso(name)
-      const nd = iso ? nationData[iso] : null
-      const rect = mapWrap.getBoundingClientRect()
-      const x = event.clientX - rect.left
-      const y = event.clientY - rect.top
-      tooltip.querySelector('.tt-country').textContent = name
-      document.getElementById('tt-body').innerHTML = nd
-        ? (currentView === 'wc' ? buildTooltipWC(nd) : buildTooltipMatchday(nd))
-        : '<div class="no-data">No predictions yet</div>'
-      tooltip.style.display = 'block'
-      tooltip.style.left = Math.min(x + 14, width - 230) + 'px'
-      tooltip.style.top = Math.max(y - 70, 4) + 'px'
-      d3.select(this).attr('opacity', 0.7)
-    })
-    .on('mouseleave', function() {
-      tooltip.style.display = 'none'
-      d3.select(this).attr('opacity', 1)
-    })
+  const rect = mapWrap.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  tooltip.querySelector('.tt-country').textContent = name
+  document.getElementById('tt-body').innerHTML = nd
+    ? (currentView === 'wc' ? buildTooltipWC(nd) : buildTooltipMatchday(nd))
+    : '<div class="no-data">No predictions yet</div>'
+  tooltip.style.display = 'block'
+  tooltip.style.left = Math.min(x + 14, width - 230) + 'px'
+  tooltip.style.top = Math.max(y - 70, 4) + 'px'
 }
 
 function switchView(view, btn) {
@@ -379,22 +364,87 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
+// UK subdivision polygons in WGS84 — drawn using the same projection as the world map
+const UK_FEATURES = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { name: 'England' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [-1.76,55.67],[-2.03,55.45],[-1.96,55.06],[-2.69,54.97],
+          [-3.06,54.42],[-3.09,53.73],[-3.09,53.36],[-2.92,53.09],
+          [-3.08,52.56],[-4.10,52.41],[-4.69,52.13],[-5.12,51.74],
+          [-4.28,51.19],[-3.11,51.21],[-2.65,51.56],[-1.43,50.93],
+          [-0.07,50.70],[0.33,50.93],[1.77,51.42],[1.42,52.06],
+          [1.75,52.97],[0.48,53.43],[0.28,53.74],[-0.07,54.03],
+          [-1.07,54.65],[-1.36,55.04],[-1.76,55.67]
+        ]]
+      }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Scotland' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [-1.76,55.67],[-2.50,55.82],[-3.19,55.95],[-4.01,55.74],
+          [-5.05,55.94],[-6.02,56.51],[-5.52,57.02],[-6.19,57.52],
+          [-5.84,57.98],[-5.01,58.42],[-4.53,58.62],[-3.83,58.50],
+          [-3.13,58.00],[-3.52,57.57],[-2.50,57.00],[-2.97,56.47],
+          [-3.44,56.02],[-3.06,55.94],[-2.69,54.97],[-1.96,55.06],
+          [-2.03,55.45],[-1.76,55.67]
+        ]]
+      }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Wales' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [-2.92,53.09],[-3.09,53.36],[-3.09,53.73],[-3.06,54.42],
+          [-2.69,54.97],[-3.44,56.02],[-3.06,55.94],[-3.09,53.73],
+          [-4.10,52.41],[-4.69,52.13],[-5.12,51.74],[-4.28,51.19],
+          [-3.11,51.21],[-2.65,51.56],[-2.65,52.06],[-2.92,52.56],
+          [-3.08,52.98],[-2.92,53.09]
+        ]]
+      }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Northern Ireland' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [-8.18,55.25],[-7.17,54.98],[-6.03,54.88],[-5.46,55.23],
+          [-5.99,55.41],[-6.79,55.52],[-7.82,55.57],[-8.18,55.25]
+        ]]
+      }
+    }
+  ]
+}
+
 function buildMap() {
   const container = document.getElementById('map')
   const width = container.offsetWidth || 800
   const height = Math.round(width * 0.52)
-  const svg = d3.select('#map').append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('width', '100%')
-  const projection = d3.geoNaturalEarth1().scale(width/6.3).translate([width/2, height/2])
+  const svg = d3.select('#map').append('svg')
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('width', '100%')
+  const projection = d3.geoNaturalEarth1()
+    .scale(width / 6.3)
+    .translate([width / 2, height / 2])
   const path = d3.geoPath(projection)
   const mapWrap = document.getElementById('map-wrap')
+  const tooltip = document.getElementById('tooltip')
 
-  Promise.all([
-    d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
-    d3.json('/uk-subdivisions.geojson')
-  ]).then(([world, ukGeo]) => {
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
 
-    // Main world map — hide raw UK blob
+    // Draw world countries — suppress UK blob (it will be replaced by subdivision overlay)
     svgPaths = svg.selectAll('path.country').data(features).join('path')
       .attr('class', 'country')
       .attr('d', path)
@@ -402,19 +452,36 @@ function buildMap() {
       .attr('stroke-width', 0.4)
       .attr('fill', '#1e1e1e')
       .attr('cursor', 'pointer')
+      .on('mousemove', function(event, d) {
+        const name = d.properties && d.properties.name
+        if (!name || name === 'United Kingdom') return
+        d3.select(this).attr('opacity', 0.7)
+        showTooltip(event, name, mapWrap, width)
+      })
+      .on('mouseleave', function() {
+        tooltip.style.display = 'none'
+        d3.select(this).attr('opacity', 1)
+      })
 
-    attachTooltip(svgPaths, svg, mapWrap, width)
-
-    // UK subdivision overlay
-    ukPaths = svg.selectAll('path.uk').data(ukGeo.features).join('path')
+    // Draw UK subdivisions using the same projection
+    svg.selectAll('path.uk').data(UK_FEATURES.features).join('path')
       .attr('class', 'uk')
       .attr('d', path)
       .attr('stroke', 'rgba(255,255,255,0.1)')
       .attr('stroke-width', 0.6)
-      .attr('fill', '#1e1e1e')
+      .attr('fill', d => {
+        const iso = resolveIso(d.properties.name)
+        return getColorForIso(iso) || '#1e1e1e'
+      })
       .attr('cursor', 'pointer')
-
-    attachTooltip(ukPaths, svg, mapWrap, width)
+      .on('mousemove', function(event, d) {
+        d3.select(this).attr('opacity', 0.7)
+        showTooltip(event, d.properties.name, mapWrap, width)
+      })
+      .on('mouseleave', function() {
+        tooltip.style.display = 'none'
+        d3.select(this).attr('opacity', 1)
+      })
 
     updateMapColors()
   })
