@@ -4,17 +4,53 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const TEAMS = [
-  { name: 'Brazil',    iso: 'BR', color: '#639922' },
-  { name: 'France',    iso: 'FR', color: '#185FA5' },
-  { name: 'England',   iso: 'GB', color: '#993C1D' },
-  { name: 'Spain',     iso: 'ES', color: '#D85A30' },
-  { name: 'Argentina', iso: 'AR', color: '#5DCAA5' },
-  { name: 'Germany',   iso: 'DE', color: '#888780' },
-  { name: 'Portugal',  iso: 'PT', color: '#A32D2D' },
-  { name: 'USA',       iso: 'US', color: '#7F77DD' },
+  { name: 'Brazil',    iso: 'BR',     color: '#639922' },
+  { name: 'France',    iso: 'FR',     color: '#185FA5' },
+  { name: 'England',   iso: 'GB-ENG', color: '#993C1D' },
+  { name: 'Spain',     iso: 'ES',     color: '#D85A30' },
+  { name: 'Argentina', iso: 'AR',     color: '#5DCAA5' },
+  { name: 'Germany',   iso: 'DE',     color: '#888780' },
+  { name: 'Portugal',  iso: 'PT',     color: '#A32D2D' },
+  { name: 'USA',       iso: 'US',     color: '#7F77DD' },
 ]
 const TEAM_COLORS = {}
 TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
+
+// Maps country names from world atlas topology to nation iso2 codes
+// Handles UK subdivisions and common name mismatches
+const COUNTRY_NAME_TO_ISO = {
+  'England': 'GB-ENG',
+  'Scotland': 'GB-SCT',
+  'Wales': 'GB-WLS',
+  'Northern Ireland': 'GB-NIR',
+  'United Kingdom': 'GB-ENG', // fallback for atlas which shows UK as one
+  'United States of America': 'US',
+  'United States': 'US',
+  'Russia': 'RU',
+  'South Korea': 'KR',
+  'North Korea': 'KP',
+  'Iran': 'IR',
+  'Syria': 'SY',
+  'Venezuela': 'VE',
+  'Bolivia': 'BO',
+  'Tanzania': 'TZ',
+  'DR Congo': 'CD',
+  'Republic of the Congo': 'CG',
+  'Ivory Coast': 'CI',
+  "Côte d'Ivoire": 'CI',
+  'Czech Republic': 'CZ',
+  'Czechia': 'CZ',
+  'Macedonia': 'MK',
+  'North Macedonia': 'MK',
+  'Bosnia and Herz.': 'BA',
+  'Bosnia and Herzegovina': 'BA',
+  'Central African Rep.': 'CF',
+  'Eq. Guinea': 'GQ',
+  'S. Sudan': 'SS',
+  'W. Sahara': null,
+  'Kosovo': null,
+  'Taiwan': null,
+}
 
 let currentView = 'wc'
 let svgPaths = null
@@ -24,9 +60,21 @@ let nations = []
 const picks = {}
 
 function getFlagEmoji(iso) {
+  if (!iso) return ''
+  if (iso.startsWith('GB-')) {
+    const map = { 'GB-ENG': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'GB-SCT': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'GB-WLS': '🏴󠁧󠁢󠁷󠁬󠁤󠁿', 'GB-NIR': '🇬🇧' }
+    return map[iso] || '🇬🇧'
+  }
   return iso.toUpperCase().split('').map(c =>
     String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
   ).join('')
+}
+
+function resolveIso(countryName) {
+  if (!countryName) return null
+  if (COUNTRY_NAME_TO_ISO.hasOwnProperty(countryName)) return COUNTRY_NAME_TO_ISO[countryName]
+  const match = nations.find(n => n.name === countryName)
+  return match ? match.iso2 : null
 }
 
 async function loadNations() {
@@ -81,8 +129,9 @@ async function loadNationData() {
     const d = byNation[n.iso2]
     if (!d) return
     const topPick = Object.entries(d.tournamentPicks).sort((a,b) => b[1]-a[1])[0]
-    nationData[n.name] = {
+    nationData[n.iso2] = {
       iso: n.iso2,
+      name: n.name,
       pick: topPick ? topPick[0] : null,
       acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
       matchPicks: d.matchPicks,
@@ -113,7 +162,7 @@ async function loadTodayMatches() {
 function renderMatches() {
   const el = document.getElementById('matches-list')
   if (todayMatches.length === 0) {
-    el.innerHTML = '<p class="loading">No matches today — check back on June 11th for the opening game.</p>'
+    el.innerHTML = '<p class="loading">No matches today — first game is June 11th. Make your tournament winner prediction below!</p>'
     return
   }
   el.innerHTML = ''
@@ -123,15 +172,16 @@ function renderMatches() {
       <span class="match-time">${time}</span>
       <span class="match-teams">${m.home_team} vs ${m.away_team}</span>
       <div class="match-pick">
-        <button class="pick-btn" data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
-        <button class="pick-btn" data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
-        <button class="pick-btn" data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
+        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
+        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
+        <button class="pick-btn${m.locked ? ' locked' : ''}" data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
       </div>
     </div>`
   })
 }
 
 function selectPick(btn) {
+  if (btn.classList.contains('locked')) return
   const mi = btn.dataset.match
   document.querySelectorAll(`.pick-btn[data-match="${mi}"]`).forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
@@ -211,9 +261,9 @@ function buildLeaderboards() {
     </div>`
   })
 
-  const accNations = Object.entries(nationData)
-    .filter(([,d]) => d.acc !== null)
-    .sort((a,b) => b[1].acc - a[1].acc)
+  const accNations = Object.values(nationData)
+    .filter(d => d.acc !== null)
+    .sort((a,b) => b.acc - a.acc)
     .slice(0, 6)
 
   if (accNations.length === 0) {
@@ -221,11 +271,11 @@ function buildLeaderboards() {
     return
   }
 
-  accNations.forEach(([name, d], i) => {
+  accNations.forEach((d, i) => {
     accEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
       <span class="lb-flag">${getFlagEmoji(d.iso)}</span>
-      <span class="lb-name">${name}</span>
+      <span class="lb-name">${d.name}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${d.acc}%;background:#378ADD"></div></div>
       <span class="lb-val">${d.acc}%</span>
     </div>`
@@ -233,7 +283,9 @@ function buildLeaderboards() {
 }
 
 function getMapColor(countryName) {
-  const nd = nationData[countryName]
+  const iso = resolveIso(countryName)
+  if (!iso) return null
+  const nd = nationData[iso]
   if (!nd) return null
   if (currentView === 'wc') {
     return nd.pick && TEAM_COLORS[nd.pick] ? TEAM_COLORS[nd.pick] + 'cc' : null
@@ -320,8 +372,9 @@ function buildMap() {
       .attr('cursor', 'pointer')
       .on('mousemove', function(event, d) {
         const name = d.properties && d.properties.name
-        const nd = nationData[name]
         if (!name) return
+        const iso = resolveIso(name)
+        const nd = iso ? nationData[iso] : null
         const rect = mapWrap.getBoundingClientRect()
         const x = event.clientX - rect.left
         const y = event.clientY - rect.top
