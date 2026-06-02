@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WCPredict — Who does the world back?</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div id="header-left">
+        <h1>WCPredict</h1>
+        <p class="sub">Who does the world think wins the 2026 FIFA World Cup?</p>
+      </div>
+      <div id="view-toggle">
+        <button class="vtab active" data-view="wc" onclick="switchView('wc',this)">WC winner</button>
+        <button class="vtab" data-view="matchday" onclick="switchView('matchday',this)">Today's matches</button>
+      </div>
+      <div id="prediction-count">Loading...</div>
+    </header>
+
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="tooltip">
+        <div class="tt-country"></div>
+        <div id="tt-body"></div>
+      </div>
+      <div id="legend"></div>
+    </div>
+
+    <div id="panels">
+      <div id="panel-left">
+        <div class="panel-title">Tournament pick — by nation</div>
+        <div id="lb-pick"></div>
+      </div>
+      <div id="panel-right">
+        <div class="panel-title">Match accuracy — by nation</div>
+        <div id="lb-acc"></div>
+      </div>
+    </div>
+
+    <div id="predict-panel">
+      <div class="panel-title">Today's matches — make your predictions</div>
+      <div id="matches-list"><p class="loading">Loading matches...</p></div>
+    </div>
+
+    <div id="submit-wrap">
+      <select id="country-select"><option value="">Your country...</option></select>
+      <button id="submit-btn" onclick="submitPredictions()">Submit picks</button>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
