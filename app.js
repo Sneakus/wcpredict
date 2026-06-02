@@ -30,7 +30,7 @@ function getFlagEmoji(iso) {
 }
 
 async function loadNations() {
-  const { data } = await supabase.from('nations').select('*').order('name')
+  const { data } = await sb.from('nations').select('*').order('name')
   if (!data) return
   nations = data
   const sel = document.getElementById('country-select')
