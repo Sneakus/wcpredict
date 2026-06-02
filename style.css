@@ -304,3 +304,59 @@ body {
   color: rgba(255,255,255,0.7);
   margin-bottom: 3px;
 }
+#tournament-pick-panel {
+  padding: 14px 16px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+}
+
+#tournament-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.team-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 0.5px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.team-btn:hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+}
+
+.team-btn.active {
+  background: #378ADD;
+  color: #fff;
+  border-color: #378ADD;
+}
+
+#tournament-selected {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
+#tournament-selected span {
+  color: #fff;
+  font-weight: 500;
+}
+
+#match-predict-panel {
+  padding: 14px 16px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+}
+
+.hidden { display: none; }
