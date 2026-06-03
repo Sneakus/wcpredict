@@ -298,6 +298,8 @@ async function submitPredictions() {
     return
   }
   const btn = document.getElementById('submit-btn')
+  const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value
+  if (!turnstileToken) { alert('Please complete the bot check'); return }
   btn.disabled = true; btn.textContent = 'Submitting...'
   setCookie('wcp_country', iso2, 60)
   const res = await fetch('/api/submit', {
@@ -308,11 +310,13 @@ async function submitPredictions() {
       tournament_winner: tournamentWinner || null,
       match_picks: picks,
       fingerprint: visitorFingerprint || null,
+      'cf-turnstile-response': turnstileToken,
     }),
   })
   const result = await res.json()
   if (res.ok) {
     btn.textContent = 'Submitted!'; btn.style.background = '#3B6D11'
+    if (window.turnstile) turnstile.reset()
     setTimeout(() => { btn.textContent = 'Submit picks'; btn.style.background = ''; btn.disabled = false }, 3000)
     loadPredictionCount()
     await loadNationData()
@@ -320,6 +324,7 @@ async function submitPredictions() {
     buildLeaderboards()
   } else {
     alert(result.error || 'Something went wrong')
+    if (window.turnstile) turnstile.reset()
     btn.disabled = false; btn.textContent = 'Submit picks'
   }
 }

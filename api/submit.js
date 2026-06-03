@@ -9,6 +9,24 @@ const supabase = createClient(
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
+  const turnstileToken = req.body['cf-turnstile-response']
+  if (!turnstileToken) {
+    return res.status(403).json({ error: 'Bot check required' })
+  }
+  const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      secret: process.env.TURNSTILE_SECRET_KEY,
+      response: turnstileToken,
+      remoteip: req.headers['x-forwarded-for'] ?? ''
+    })
+  })
+  const verifyData = await verifyRes.json()
+  if (!verifyData.success) {
+    return res.status(403).json({ error: 'Bot check failed' })
+  }
+
   const { nation_iso2, tournament_winner, match_picks, fingerprint } = req.body
 
   if (!nation_iso2) {
