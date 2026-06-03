@@ -415,6 +415,55 @@ create index on predictions(round);
 
 ---
 
+## Section 7 — Personal Stats (Post-Launch)
+
+### 7.1 Concept
+Show returning users their personal prediction accuracy without requiring an account.
+Uses the existing fingerprint hash + cookie to identify returning visitors.
+
+### 7.2 What to show
+- "You've predicted X matches correctly out of Y"
+- "You're in the top X% of predictors globally"
+- "You're in the top X% of predictors from [your country]"
+- Only shown once enough match results exist to be meaningful (suggest: after matchday 3+)
+
+### 7.3 Implementation
+- On page load, read fingerprint hash and look up predictions from DB
+- Query: all predictions matching this fingerprint_hash where score is not null
+- Calculate: correct / total = accuracy %
+- Query global and national distributions to compute percentile
+- Display as a subtle banner or card above the leaderboards — not intrusive
+- No account needed — works automatically for returning visitors
+- If fingerprint not found or no scored predictions yet: show nothing
+
+### 7.4 Database query needed
+```sql
+select
+  count(*) filter (where score = 1) as correct,
+  count(*) filter (where score is not null) as total
+from predictions
+where fingerprint_hash = $1;
+
+-- For percentile:
+select
+  count(*) filter (where accuracy < user_accuracy) * 100.0 / count(*) as percentile
+from (
+  select
+    fingerprint_hash,
+    count(*) filter (where score = 1)::float / nullif(count(*) filter (where score is not null), 0) as accuracy
+  from predictions
+  group by fingerprint_hash
+  having count(*) filter (where score is not null) >= 3
+) nation_accuracies;
+```
+
+### 7.5 Notes
+- Minimum 3 scored predictions before showing percentile (avoids misleading 100% after 1 correct)
+- Fingerprint can change if user clears cookies/uses different device — accepted limitation
+- Do not build until there is enough tournament data (post matchday 3)
+
+---
+
 ## Priority Order for Remaining 8 Days
 
 ### Today (June 3) — In progress
