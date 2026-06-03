@@ -347,7 +347,9 @@ function scrollToPredict() {
 function updatePickPromptVisibility() {
   const hasWinnerCookie = !!getCookie('wcp_tournament_winner')
   const hasUnlockedMatches = todayMatches.some(m => !m.locked)
-  if (hasWinnerCookie && !hasUnlockedMatches) {
+  const pickedToday = getCookie('wcp_picked_date') === new Date().toISOString().slice(0, 10)
+
+  if (hasWinnerCookie && (!hasUnlockedMatches || pickedToday)) {
     hidePickPrompt()
   }
 }
