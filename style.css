@@ -211,6 +211,23 @@ body {
 .lb-name { color: #e8e6df; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-val { font-weight: 500; color: #fff; font-size: 11px; white-space: nowrap; }
 
+.lb-show-more {
+  background: none;
+  border: 0.5px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 6px;
+  font-family: inherit;
+  width: 100%;
+}
+.lb-show-more:hover {
+  color: rgba(255,255,255,0.7);
+  border-color: rgba(255,255,255,0.3);
+}
+
 .bar-wrap {
   flex: 1;
   height: 3px;

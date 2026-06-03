@@ -350,23 +350,62 @@ function buildLeaderboards() {
   const pickEl = document.getElementById('lb-pick')
   const accEl = document.getElementById('lb-acc')
   pickEl.innerHTML = ''; accEl.innerHTML = ''
-  const pickCounts = {}
-  TEAMS.forEach(t => pickCounts[t.name] = 0)
+
+  const allPickCounts = {}
   Object.values(nationData).forEach(d => {
-    if (d.pick && pickCounts[d.pick] !== undefined) pickCounts[d.pick]++
+    Object.entries(d.tournamentPicks || {}).forEach(([team, count]) => {
+      allPickCounts[team] = (allPickCounts[team] || 0) + count
+    })
   })
-  const sorted = TEAMS.slice().sort((a,b) => pickCounts[b.name]-pickCounts[a.name])
-  const maxPick = Math.max(...Object.values(pickCounts), 1)
-  sorted.forEach((t, i) => {
-    const count = pickCounts[t.name]
+
+  const allSorted = Object.entries(allPickCounts)
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, count]) => count > 0)
+
+  const maxPick = allSorted[0]?.[1] || 1
+  const topRows = allSorted.slice(0, 8)
+  const moreRows = allSorted.slice(8)
+
+  topRows.forEach(([team, count], i) => {
+    const color = TEAM_COLORS[team] || '#888'
+    const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
     pickEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
-      <span class="lb-flag">${getFlagEmoji(t.iso)}</span>
-      <span class="lb-name">${t.name}</span>
-      <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${t.color}"></div></div>
+      <span class="lb-flag">${flag}</span>
+      <span class="lb-name">${team}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
       <span class="lb-val">${count}</span>
     </div>`
   })
+
+  if (moreRows.length > 0) {
+    const moreEl = document.createElement('div')
+    moreEl.id = 'lb-pick-more'
+    moreEl.style.display = 'none'
+    moreRows.forEach(([team, count], i) => {
+      const color = TEAM_COLORS[team] || '#888'
+      const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
+      moreEl.innerHTML += `<div class="lb-row">
+        <span class="lb-rank">${i+9}</span>
+        <span class="lb-flag">${flag}</span>
+        <span class="lb-name">${team}</span>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
+        <span class="lb-val">${count}</span>
+      </div>`
+    })
+    pickEl.appendChild(moreEl)
+
+    const toggleBtn = document.createElement('button')
+    toggleBtn.className = 'lb-show-more'
+    toggleBtn.textContent = `Show ${moreRows.length} more`
+    toggleBtn.onclick = () => {
+      const isHidden = moreEl.style.display === 'none'
+      moreEl.style.display = isHidden ? 'block' : 'none'
+      toggleBtn.textContent = isHidden ? 'Show less' : `Show ${moreRows.length} more`
+    }
+    pickEl.appendChild(toggleBtn)
+  }
+
   const accNations = Object.values(nationData).filter(d=>d.acc!==null).sort((a,b)=>b.acc-a.acc).slice(0,6)
   if (accNations.length === 0) {
     accEl.innerHTML = '<p class="no-data">Accuracy data available after first match results.</p>'
