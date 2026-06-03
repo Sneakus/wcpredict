@@ -1087,18 +1087,34 @@ async function loadPersonalStats() {
         const teamFlag = teamData ? teamData.flag : ''
         const accuracyStr = r.total > 0 ? `${r.correct}/${r.total}` : null
         const isCurrentRound = r.round === currentRound
+        const isPerfect = r.isPerfect
         const blockId = `history-block-${r.round}`
         const startOpen = isCurrentRound || idx === data.history.length - 1
+        const blockClass = isPerfect ? 'history-round-block perfect-round' : 'history-round-block'
 
-        html += `<div class="history-round-block">`
+        html += `<div class="${blockClass}">`
 
         html += `<div class="history-round-header" onclick="toggleHistoryBlock('${blockId}')">`
         html += `<span class="history-round-label">${r.label}</span>`
-        if (accuracyStr) html += `<span class="history-round-accuracy">${accuracyStr} correct</span>`
+        if (isPerfect) {
+          html += `<span class="perfect-badge">⭐ Perfect round</span>`
+        } else if (accuracyStr) {
+          html += `<span class="history-round-accuracy">${accuracyStr} correct</span>`
+        }
         html += `<span class="history-round-chevron" id="${blockId}-chevron">${startOpen ? '▴' : '▾'}</span>`
         html += `</div>`
 
         html += `<div class="history-round-body" id="${blockId}" style="display:${startOpen ? 'block' : 'none'}">`
+
+        if (r.percentiles && r.percentiles.global !== null && r.total >= 2) {
+          html += `<div class="round-percentiles">`
+          html += `<span class="round-percentile-item">🌍 Top ${100 - r.percentiles.global}% globally this round</span>`
+          if (r.percentiles.national !== null) {
+            html += `<span class="round-percentile-sep">·</span>`
+            html += `<span class="round-percentile-item">🏳️ Top ${100 - r.percentiles.national}% in your country</span>`
+          }
+          html += `</div>`
+        }
 
         if (r.tournamentPick) {
           html += `<div class="history-champion-pick">
@@ -1108,20 +1124,36 @@ async function loadPersonalStats() {
         }
 
         if (r.matchPicks && r.matchPicks.length > 0) {
-          html += `<div class="history-match-chips">`
+          let streak = 0
+          let maxStreak = 0
+          let currentStreak = 0
           r.matchPicks.forEach(m => {
+            if (m.score === 1) { currentStreak++; maxStreak = Math.max(maxStreak, currentStreak) }
+            else { currentStreak = 0 }
+          })
+
+          html += `<div class="history-match-chips">`
+          let runningStreak = 0
+          r.matchPicks.forEach((m, mi) => {
             const correct = m.score === 1
             const chipClass = correct ? 'chip-correct' : 'chip-wrong'
             const homeActive = m.pick === m.home
             const awayActive = m.pick === m.away
             const drawActive = m.pick === 'Draw'
+            if (correct) runningStreak++; else runningStreak = 0
+            const isStreakPeak = runningStreak === maxStreak && maxStreak >= 3 && correct
 
-            html += `<div class="match-chip ${chipClass}">
+            html += `<div class="match-chip ${chipClass}${isStreakPeak ? ' streak-peak' : ''}">
               <span class="chip-team ${homeActive ? 'chip-team-picked' : ''}">${m.home}</span>
               <span class="chip-vs ${drawActive ? 'chip-draw-picked' : ''}">vs</span>
               <span class="chip-team ${awayActive ? 'chip-team-picked' : ''}">${m.away}</span>
             </div>`
           })
+
+          if (maxStreak >= 3) {
+            html += `<div class="streak-badge">🔥 ${maxStreak} in a row</div>`
+          }
+
           html += `</div>`
         } else if (!r.tournamentPick) {
           html += `<div class="history-empty">No picks recorded this round</div>`

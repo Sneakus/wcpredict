@@ -279,6 +279,7 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 12px;
+  margin-bottom: 10px;
 }
 
 .history-champion-label {
@@ -294,6 +295,58 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
+}
+
+.perfect-round {
+  border: 0.5px solid rgba(255,215,0,0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255,215,0,0.04);
+}
+
+.perfect-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFD700;
+  background: rgba(255,215,0,0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 0.5px solid rgba(255,215,0,0.3);
+}
+
+.round-percentiles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  margin-top: 2px;
+}
+
+.round-percentile-item {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+
+.round-percentile-sep {
+  color: rgba(255,255,255,0.2);
+  font-size: 11px;
+}
+
+.streak-peak {
+  outline: 1px solid rgba(255,165,0,0.5);
+}
+
+.streak-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #FF9800;
+  padding: 3px 10px;
+  background: rgba(255,152,0,0.1);
+  border-radius: 10px;
+  border: 0.5px solid rgba(255,152,0,0.3);
+  align-self: center;
 }
 
 .match-chip {

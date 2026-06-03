@@ -59,21 +59,25 @@ export default async function handler(req, res) {
     })
   }
 
-  const historyFormatted = rounds
-    .filter(r => history[r])
-    .map(r => ({
-      round: r,
-      label: roundLabels[r],
-      tournamentPick: history[r].tournamentPick,
-      matchPicks: history[r].matchPicks,
-      correct: history[r].correct,
-      total: history[r].total,
-    }))
+  function formatHistory(roundPercentiles = {}) {
+    return rounds
+      .filter(r => history[r])
+      .map(r => ({
+        round: r,
+        label: roundLabels[r],
+        tournamentPick: history[r].tournamentPick,
+        matchPicks: history[r].matchPicks,
+        correct: history[r].correct,
+        total: history[r].total,
+        isPerfect: history[r].total >= 2 && history[r].correct === history[r].total,
+        percentiles: roundPercentiles[r] || null,
+      }))
+  }
 
   if (!hasEnoughForStats) {
     return res.status(200).json({
       insufficient_data: true,
-      history: historyFormatted,
+      history: formatHistory(),
     })
   }
 
@@ -92,6 +96,24 @@ export default async function handler(req, res) {
     p_nation_iso2: nation_iso2
   })
 
+  const roundPercentiles = {}
+  for (const r of rounds.filter(r => history[r] && history[r].total >= 2)) {
+    const { data: roundGlobal } = await supabase.rpc('get_accuracy_percentile', {
+      p_fingerprint_hash: fingerprintHash,
+      p_nation_iso2: null,
+      p_round: r
+    })
+    const { data: roundNational } = await supabase.rpc('get_accuracy_percentile', {
+      p_fingerprint_hash: fingerprintHash,
+      p_nation_iso2: nation_iso2,
+      p_round: r
+    })
+    roundPercentiles[r] = {
+      global: roundGlobal,
+      national: roundNational,
+    }
+  }
+
   return res.status(200).json({
     correct,
     total,
@@ -99,6 +121,6 @@ export default async function handler(req, res) {
     global_percentile: globalStats,
     national_percentile: nationalStats,
     nation_iso2,
-    history: historyFormatted,
+    history: formatHistory(roundPercentiles),
   })
 }
