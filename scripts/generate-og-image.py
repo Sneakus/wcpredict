@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
+import colorsys
+import random
 from pathlib import Path
 
 import geopandas as gpd
@@ -19,127 +20,14 @@ BG = "#0a0a0a"
 TEXT = "#ffffff"
 SUBTEXT = "#b4b4af"
 
-RED = {"Russia", "China"}
 
-CAPITALIST_BLUE = {
-    "United States of America",
-    "France",
-    "Germany",
-    "United Kingdom",
-    "Spain",
-    "Italy",
-    "Netherlands",
-    "Belgium",
-    "Portugal",
-    "Australia",
-    "Japan",
-    "South Korea",
-    "Mexico",
-    "Argentina",
-    "Chile",
-    "Sweden",
-    "Norway",
-    "Denmark",
-    "Finland",
-    "Ireland",
-    "Switzerland",
-    "Austria",
-    "Poland",
-    "Greece",
-    "Czechia",
-    "Czech Republic",
-    "New Zealand",
-    "Singapore",
-    "Israel",
-    "United Arab Emirates",
-    "Saudi Arabia",
-    "Taiwan",
-    "Iceland",
-    "Luxembourg",
-    "Slovakia",
-    "Slovenia",
-    "Estonia",
-    "Latvia",
-    "Lithuania",
-}
-
-CAPITALIST_GREEN = {
-    "Canada",
-    "Brazil",
-    "Colombia",
-    "Uruguay",
-    "Paraguay",
-    "Peru",
-    "Ecuador",
-    "India",
-    "Indonesia",
-    "Philippines",
-    "Thailand",
-    "Malaysia",
-    "Vietnam",
-    "Turkey",
-    "Romania",
-    "Hungary",
-    "Ukraine",
-    "Croatia",
-    "Serbia",
-    "Bulgaria",
-    "Panama",
-    "Costa Rica",
-    "Guatemala",
-    "Honduras",
-    "El Salvador",
-    "Nicaragua",
-    "Dominican Rep.",
-    "Jamaica",
-    "Trinidad and Tobago",
-}
-
-AFRICA_PALETTE = [
-    "#6BAF4A",
-    "#5DCAA5",
-    "#D4934A",
-    "#7F77DD",
-    "#6B8FC7",
-    "#8BC66A",
-    "#C97B5A",
-    "#4FA3A8",
-    "#A8C856",
-    "#E0A84F",
-]
-
-ASIA_PALETTE = [
-    "#5A9E78",
-    "#6B8FC7",
-    "#8BC66A",
-    "#4FA3A8",
-    "#7F77DD",
-]
-
-DEFAULT = "#4a5568"
-ANTARCTICA = "#2a2a2e"
-
-
-def country_color(name: str, continent: str) -> str:
-    if name in RED:
-        return "#B84242"
-    if name in CAPITALIST_BLUE:
-        return "#4A8FD4"
-    if name in CAPITALIST_GREEN:
-        return "#6AAF52"
-    if continent == "Africa":
-        idx = int(hashlib.md5(name.encode()).hexdigest(), 16) % len(AFRICA_PALETTE)
-        return AFRICA_PALETTE[idx]
-    if continent == "Asia":
-        idx = int(hashlib.md5(name.encode()).hexdigest(), 16) % len(ASIA_PALETTE)
-        return ASIA_PALETTE[idx]
-    if continent == "South America":
-        return "#6AAF52" if name in {"Brazil", "Colombia", "Uruguay"} else "#4A8FD4"
-    if continent == "Oceania":
-        return "#4A8FD4"
-    if name == "Antarctica":
-        return ANTARCTICA
-    return DEFAULT
+def random_country_color(rng: random.Random) -> str:
+    """Pick a bright, random fill colour — no dark greys or black."""
+    hue = rng.random()
+    saturation = 0.5 + rng.random() * 0.4
+    lightness = 0.42 + rng.random() * 0.24
+    r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 def load_font(bold: bool, size: int):
@@ -159,15 +47,14 @@ def load_font(bold: bool, size: int):
 def main() -> None:
     repo = Path(__file__).resolve().parents[1]
     out_path = repo / "og-image.png"
+    rng = random.Random()
 
     url = (
         "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
         "master/geojson/ne_110m_admin_0_countries.geojson"
     )
     world = gpd.read_file(url)
-    world["fill"] = world.apply(
-        lambda row: country_color(row["NAME"], row["CONTINENT"]), axis=1
-    )
+    world["fill"] = [random_country_color(rng) for _ in range(len(world))]
 
     dpi = 100
     fig_w, fig_h = W / dpi, H / dpi
