@@ -41,6 +41,18 @@ export default async function handler(req, res) {
     ? crypto.createHash('sha256').update(fingerprint).digest('hex')
     : null
 
+  let currentRound = 'group_stage'
+  try {
+    const { data: roundData } = await supabase
+      .from('rounds')
+      .select('round')
+      .eq('is_current', true)
+      .single()
+    if (roundData) currentRound = roundData.round
+  } catch (e) {
+    // Fall back to group_stage if rounds table not yet created
+  }
+
   const rows = []
 
   if (match_picks && Object.keys(match_picks).length > 0) {
@@ -69,6 +81,7 @@ export default async function handler(req, res) {
         nation_iso2,
         predicted_winner,
         tournament_winner: tournament_winner || null,
+        round: currentRound,
         ip_hash: ipHash,
         fingerprint_hash: fingerprintHash,
         cf_country: cfCountry,
@@ -93,6 +106,7 @@ export default async function handler(req, res) {
         nation_iso2,
         predicted_winner: tournament_winner,
         tournament_winner,
+        round: currentRound,
         ip_hash: ipHash,
         fingerprint_hash: fingerprintHash,
         cf_country: cfCountry,

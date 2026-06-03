@@ -733,6 +733,35 @@ body {
   }
 }
 
+#round-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, #378ADD22, #378ADD11);
+  border-bottom: 1px solid #378ADD55;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+#round-banner button {
+  background: #378ADD;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+#round-banner button:hover { opacity: 0.85; }
+
 #share-modal {
   position: fixed;
   inset: 0;

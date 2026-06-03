@@ -144,6 +144,7 @@ let todayMatches = []
 let nations = []
 let tournamentWinner = null
 let visitorFingerprint = null
+let currentRound = 'group_stage'
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -182,6 +183,48 @@ async function initFingerprint() {
   } catch (e) {
     console.warn('Fingerprint init failed:', e)
   }
+}
+
+async function loadCurrentRound() {
+  try {
+    const { data, error } = await sb
+      .from('rounds')
+      .select('round')
+      .eq('is_current', true)
+      .single()
+    if (error || !data) return
+
+    currentRound = data.round
+    const storedRound = getCookie('wcp_round')
+
+    if (storedRound && storedRound !== currentRound) {
+      setCookie('wcp_tournament_winner', '', -1)
+      tournamentWinner = null
+      showRoundBanner(currentRound)
+    }
+
+    setCookie('wcp_round', currentRound, 60)
+  } catch (e) {
+    console.warn('loadCurrentRound failed:', e)
+  }
+}
+
+function showRoundBanner(round) {
+  const labels = {
+    'round_of_32':  'The Round of 32 is set',
+    'round_of_16':  'The Round of 16 is set',
+    'quarter_final':'The Quarter-Finals are set',
+    'semi_final':   'The Semi-Finals are set',
+    'final':        'The Final is set',
+  }
+  const label = labels[round] || 'A new round has begun'
+  const banner = document.createElement('div')
+  banner.id = 'round-banner'
+  banner.innerHTML = `
+    <span>🏆 ${label} — re-pick your World Cup winner</span>
+    <button onclick="document.getElementById('round-banner').remove(); scrollToPredict()">Pick now</button>
+  `
+  document.getElementById('app').insertBefore(banner, document.getElementById('map-wrap'))
 }
 
 function buildTournamentPicker() {
@@ -1030,6 +1073,7 @@ async function loadPersonalStats() {
 
 async function init() {
   await initFingerprint()
+  await loadCurrentRound()
   await loadNations()
   await loadNationData()
   await loadTodayMatches()
