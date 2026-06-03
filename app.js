@@ -456,46 +456,58 @@ function buildTooltipUK() {
   return UK_NATIONS.map(nation => {
     const nd = nationData[nation.iso]
     const flag = getFlagEmoji(nation.iso)
-    if (!nd || !nd.pick) {
+    if (!nd) {
       return `<div class="tt-uk-nation">
         <div class="tt-uk-label">${flag} ${nation.name}</div>
         <div class="no-data" style="font-size:10px">No data yet</div>
       </div>`
     }
     if (currentView === 'wc') {
-      const entries = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1]).slice(0,2)
-      const total = entries.reduce((s,[,v])=>s+v,0)
+      const entries = Object.entries(nd.tournamentPicks || {}).sort((a, b) => b[1] - a[1]).slice(0, 2)
+      if (!entries.length) {
+        return `<div class="tt-uk-nation">
+          <div class="tt-uk-label">${flag} ${nation.name}</div>
+          <div class="no-data" style="font-size:10px">No data yet</div>
+        </div>`
+      }
+      const total = entries.reduce((s, [, v]) => s + v, 0)
       return `<div class="tt-uk-nation">
         <div class="tt-uk-label">${flag} ${nation.name}</div>
-        ${entries.map(([team,count]) => {
-          const pct = Math.round(count/total*100)
+        ${entries.map(([team, count]) => {
+          const pct = Math.round(count / total * 100)
           return `<div class="tt-row">
             <span class="tt-label">${team}</span>
-            <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[team]||'#888'}"></div></div>
-            <span class="tt-val">${pct}%</span>
-          </div>`
-        }).join('')}
-      </div>`
-    } else {
-      if (!nd.matchPicks||!todayMatches.length) return ''
-      const mp = nd.matchPicks[todayMatches[0].id]
-      if (!mp) return `<div class="tt-uk-nation"><div class="tt-uk-label">${flag} ${nation.name}</div><div class="no-data" style="font-size:10px">No picks yet</div></div>`
-      const entries = Object.entries(mp).sort((a,b)=>b[1]-a[1]).slice(0,1)
-      const total = Object.values(mp).reduce((s,v)=>s+v,0)
-      const m = todayMatches[0]
-      return `<div class="tt-uk-nation">
-        <div class="tt-uk-label">${flag} ${nation.name}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:2px">${m.home_team} vs ${m.away_team}</div>
-        ${entries.map(([k,v]) => {
-          const pct = Math.round(v/total*100)
-          return `<div class="tt-row">
-            <span class="tt-label">${k}</span>
-            <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${k==='Draw'?'#888':(TEAM_COLORS[k]||'#888')}"></div></div>
+            <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[team] || '#888'}"></div></div>
             <span class="tt-val">${pct}%</span>
           </div>`
         }).join('')}
       </div>`
     }
+    if (!todayMatches.length) {
+      return `<div class="tt-uk-nation">
+        <div class="tt-uk-label">${flag} ${nation.name}</div>
+        <div class="no-data" style="font-size:10px">No matches today</div>
+      </div>`
+    }
+    const mp = nd.matchPicks?.[todayMatches[0].id]
+    if (!mp) {
+      return `<div class="tt-uk-nation"><div class="tt-uk-label">${flag} ${nation.name}</div><div class="no-data" style="font-size:10px">No picks yet</div></div>`
+    }
+    const entries = Object.entries(mp).sort((a, b) => b[1] - a[1]).slice(0, 1)
+    const total = Object.values(mp).reduce((s, v) => s + v, 0)
+    const m = todayMatches[0]
+    return `<div class="tt-uk-nation">
+      <div class="tt-uk-label">${flag} ${nation.name}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:2px">${m.home_team} vs ${m.away_team}</div>
+      ${entries.map(([k, v]) => {
+        const pct = Math.round(v / total * 100)
+        return `<div class="tt-row">
+          <span class="tt-label">${k}</span>
+          <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${k === 'Draw' ? '#888' : (TEAM_COLORS[k] || '#888')}"></div></div>
+          <span class="tt-val">${pct}%</span>
+        </div>`
+      }).join('')}
+    </div>`
   }).join('<div style="height:1px;background:rgba(255,255,255,0.08);margin:5px 0"></div>')
 }
 
