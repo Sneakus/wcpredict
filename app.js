@@ -506,7 +506,7 @@ function buildMap() {
     .style('cursor', 'grab')
   const projection = d3.geoNaturalEarth1()
     .scale(width / 6.3)
-    .translate([width / 2, height / 2])
+    .translate([width / 2, height / 2.1])
   const path = d3.geoPath(projection)
   const mapWrap = document.getElementById('map-wrap')
   const tooltip = document.getElementById('tooltip')
@@ -532,6 +532,7 @@ function buildMap() {
 
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
+      .filter(d => d.properties && d.properties.name !== 'Antarctica')
     svgPaths = g.selectAll('path.country').data(features).join('path')
       .attr('class', 'country')
       .attr('d', path)
