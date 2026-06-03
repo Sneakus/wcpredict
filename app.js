@@ -520,7 +520,7 @@ function buildTooltipWC(nd) {
     return `<div class="tt-row">
       <span class="tt-label">${team}</span>
       <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[team]||'#888'}"></div></div>
-      <span class="tt-val">${pct}%</span>
+      <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${count})</span></span>
     </div>`
   }).join('')
 }
@@ -539,7 +539,7 @@ function buildTooltipMatchday(nd) {
         return `<div class="tt-row">
           <span class="tt-label">${k}</span>
           <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${k==='Draw'?'#888':(TEAM_COLORS[k]||'#888')}"></div></div>
-          <span class="tt-val">${pct}%</span>
+          <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${v})</span></span>
         </div>`
       }).join('')}
     </div>`
@@ -574,7 +574,7 @@ function buildTooltipUK() {
           return `<div class="tt-row">
             <span class="tt-label">${team}</span>
             <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[team] || '#888'}"></div></div>
-            <span class="tt-val">${pct}%</span>
+            <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${count})</span></span>
           </div>`
         }).join('')}
       </div>`
@@ -600,7 +600,7 @@ function buildTooltipUK() {
         return `<div class="tt-row">
           <span class="tt-label">${k}</span>
           <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${k === 'Draw' ? '#888' : (TEAM_COLORS[k] || '#888')}"></div></div>
-          <span class="tt-val">${pct}%</span>
+          <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${v})</span></span>
         </div>`
       }).join('')}
     </div>`
