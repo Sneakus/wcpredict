@@ -1,8 +1,12 @@
-"""Generate og-image.png for social sharing previews."""
+"""Generate og-image.png for social sharing previews.
+
+The live site map (app.js) colours countries by World Cup team picks using
+TEAM_COLORS. This script uses that same palette but assigns colours to
+countries at random — decorative only, not tied to predictions.
+"""
 
 from __future__ import annotations
 
-import colorsys
 import random
 from pathlib import Path
 
@@ -20,14 +24,17 @@ BG = "#0a0a0a"
 TEXT = "#ffffff"
 SUBTEXT = "#b4b4af"
 
-
-def random_country_color(rng: random.Random) -> str:
-    """Pick a bright, random fill colour — no dark greys or black."""
-    hue = rng.random()
-    saturation = 0.5 + rng.random() * 0.4
-    lightness = 0.42 + rng.random() * 0.24
-    r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
-    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+# Same colours as TEAMS / TEAM_COLORS in app.js
+TEAM_COLORS = [
+    "#639922",  # Brazil
+    "#185FA5",  # France
+    "#993C1D",  # England
+    "#D85A30",  # Spain
+    "#5DCAA5",  # Argentina
+    "#888780",  # Germany
+    "#A32D2D",  # Portugal
+    "#7F77DD",  # USA
+]
 
 
 def load_font(bold: bool, size: int):
@@ -54,7 +61,7 @@ def main() -> None:
         "master/geojson/ne_110m_admin_0_countries.geojson"
     )
     world = gpd.read_file(url)
-    world["fill"] = [random_country_color(rng) for _ in range(len(world))]
+    world["fill"] = [rng.choice(TEAM_COLORS) for _ in range(len(world))]
 
     dpi = 100
     fig_w, fig_h = W / dpi, H / dpi
