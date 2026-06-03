@@ -1,13 +1,17 @@
 """Generate og-image.png for social sharing previews.
 
 The live site map (app.js) colours countries by World Cup team picks using
-TEAM_COLORS. This script uses that same palette but assigns colours to
-countries at random — decorative only, not tied to predictions.
+TEAM_COLORS. This script uses that same palette with a fixed per-country
+assignment stored in og-map-fills.json — decorative only, not tied to
+predictions.
+
+The committed og-image.png and og-map-fills.json are canonical. Re-running
+this script preserves the same country colours.
 """
 
 from __future__ import annotations
 
-import random
+import json
 from pathlib import Path
 
 import geopandas as gpd
@@ -24,7 +28,6 @@ BG = "#0a0a0a"
 TEXT = "#ffffff"
 SUBTEXT = "#ffffff"
 
-# Same colours as TEAMS / TEAM_COLORS in app.js
 TEAM_COLORS = [
     "#639922",  # Brazil
     "#185FA5",  # France
@@ -51,17 +54,32 @@ def load_font(bold: bool, size: int):
     return font_manager.FontProperties(size=size, weight="bold" if bold else "normal")
 
 
+def load_country_fills(script_dir: Path) -> list[str]:
+    fills_path = script_dir / "og-map-fills.json"
+    fills = json.loads(fills_path.read_text(encoding="utf-8"))
+    for color in fills:
+        if color not in TEAM_COLORS:
+            raise SystemExit(f"Unknown team colour in og-map-fills.json: {color}")
+    return fills
+
+
 def main() -> None:
-    repo = Path(__file__).resolve().parents[1]
+    script_dir = Path(__file__).resolve().parent
+    repo = script_dir.parent
     out_path = repo / "og-image.png"
-    rng = random.Random()
+    country_fills = load_country_fills(script_dir)
 
     url = (
         "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
         "master/geojson/ne_110m_admin_0_countries.geojson"
     )
     world = gpd.read_file(url)
-    world["fill"] = [rng.choice(TEAM_COLORS) for _ in range(len(world))]
+    if len(world) != len(country_fills):
+        raise SystemExit(
+            f"Country count mismatch: geojson has {len(world)}, "
+            f"og-map-fills.json has {len(country_fills)}"
+        )
+    world["fill"] = country_fills
 
     dpi = 100
     fig_w, fig_h = W / dpi, H / dpi
