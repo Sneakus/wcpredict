@@ -494,27 +494,47 @@ body {
   margin-bottom: 3px;
 }
 #tournament-pick-panel {
-  padding: 14px 16px;
+  padding: 28px 16px;
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+}
+
+#tournament-pick-panel .panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+
+#tournament-pick-subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 18px;
 }
 
 #tournament-teams {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 4px;
+  justify-content: center;
 }
 
 .team-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border: 0.5px solid rgba(255,255,255,0.15);
+  gap: 6px;
+  padding: 7px 14px;
+  border: 0.5px solid rgba(255,255,255,0.18);
   border-radius: 20px;
   background: transparent;
-  color: rgba(255,255,255,0.6);
-  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  font-size: 13px;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
@@ -523,24 +543,27 @@ body {
 .team-btn:hover {
   background: rgba(255,255,255,0.07);
   color: #fff;
-  border-color: rgba(255,255,255,0.3);
+  border-color: rgba(255,255,255,0.35);
 }
 
 .team-btn.active {
   background: #378ADD;
   color: #fff;
   border-color: #378ADD;
+  box-shadow: 0 0 10px rgba(55, 138, 221, 0.4);
 }
 
 #tournament-selected {
-  margin-top: 10px;
-  font-size: 12px;
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 500;
   color: rgba(255,255,255,0.5);
 }
 
 #tournament-selected span {
   color: #fff;
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 17px;
 }
 
 .hidden { display: none; }
