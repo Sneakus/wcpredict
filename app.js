@@ -363,6 +363,7 @@ async function submitPredictions() {
     await loadNationData()
     updateMapColors()
     buildLeaderboards()
+    generateShareCard(iso2)
     hidePickPrompt()
     setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
   } else {
@@ -374,6 +375,174 @@ async function submitPredictions() {
 
 function scrollToPredict() {
   document.getElementById('tournament-pick-panel').scrollIntoView({ behavior: 'smooth' })
+}
+
+async function generateShareCard(iso2) {
+  if (!tournamentWinner) return
+  const nd = nationData[iso2]
+  if (!nd) return
+
+  const picks = nd.tournamentPicks || {}
+  const totalVotes = Object.values(picks).reduce((s, v) => s + v, 0)
+  const topPick = Object.entries(picks).sort((a, b) => b[1] - a[1])[0]
+  const countryTopTeam = topPick ? topPick[0] : null
+  const countryTopPct = topPick && totalVotes > 0 ? Math.round(topPick[1] / totalVotes * 100) : null
+  const userVotes = picks[tournamentWinner] || 0
+  const userPct = totalVotes > 0 ? Math.round(userVotes / totalVotes * 100) : null
+  const isContrarian = countryTopTeam && tournamentWinner !== countryTopTeam
+  const isSelfPick = tournamentWinner === nd.name
+
+  const countriesBackingSameTeam = Object.values(nationData)
+    .filter(n => n.pick === tournamentWinner).length
+
+  let headlineLine1 = ''
+  let headlineLine2 = ''
+  let statLine = ''
+
+  const nationName = nd.name ? nd.name.toUpperCase() : iso2
+  const teamName = tournamentWinner.toUpperCase()
+
+  if (isSelfPick) {
+    headlineLine1 = `${nationName} backs`
+    headlineLine2 = teamName
+    statLine = countriesBackingSameTeam <= 3
+      ? `One of only ${countriesBackingSameTeam} nations backing themselves 🔥`
+      : `${countriesBackingSameTeam} nations backing the home side`
+  } else if (isContrarian && userPct !== null && userPct < 30) {
+    headlineLine1 = `${nationName} — the minority view`
+    headlineLine2 = teamName
+    statLine = countryTopPct !== null
+      ? `${100 - countryTopPct}% of ${nd.name} disagrees — back them anyway 🔥`
+      : `Going against the grain`
+  } else {
+    headlineLine1 = `${nationName} backs`
+    headlineLine2 = teamName
+    statLine = countryTopPct !== null && totalVotes >= 3
+      ? `${countryTopPct}% of ${nd.name} agrees`
+      : `Add your pick to the map`
+  }
+
+  const canvas = document.getElementById('share-canvas')
+  const ctx = canvas.getContext('2d')
+  const W = 1080, H = 1920
+  canvas.width = W; canvas.height = H
+
+  const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
+
+  ctx.fillStyle = '#0a0a0a'
+  ctx.fillRect(0, 0, W, H)
+
+  const grad = ctx.createLinearGradient(0, H * 0.45, 0, H)
+  grad.addColorStop(0, 'rgba(0,0,0,0)')
+  grad.addColorStop(1, teamColor + '22')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, 0, W, 8)
+
+  const SAFE_TOP = 140
+  const SAFE_BOTTOM = 1560
+
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('WORLD CUP MAP', 80, SAFE_TOP)
+
+  ctx.font = '160px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  const flagEmoji = getFlagEmoji(iso2)
+  ctx.fillText(flagEmoji, 72, SAFE_TOP + 230)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  ctx.font = '600 72px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText(headlineLine1, 80, SAFE_TOP + 390)
+
+  ctx.fillStyle = teamColor
+  ctx.font = '800 128px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.fillText(headlineLine2, 80, SAFE_TOP + 540)
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(80, SAFE_TOP + 600)
+  ctx.lineTo(W - 80, SAFE_TOP + 600)
+  ctx.stroke()
+
+  if (countryTopPct !== null && totalVotes >= 3) {
+    const pctStr = isContrarian ? `${userPct || ''}%` : `${countryTopPct}%`
+    ctx.fillStyle = '#fff'
+    ctx.font = '800 320px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(pctStr, W / 2, SAFE_TOP + 980)
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  ctx.font = '500 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  wrapText(ctx, statLine, W / 2, SAFE_TOP + 1060, W - 160, 68)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.font = '400 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('Add your country\'s pick →', 80, SAFE_BOTTOM - 80)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.font = '600 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('worldcupmap.io', W - 80, SAFE_BOTTOM - 80)
+
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, H - 8, W, 8)
+
+  const preview = document.getElementById('share-preview')
+  preview.src = canvas.toDataURL('image/jpeg', 0.85)
+  document.getElementById('share-card-wrap').style.display = 'block'
+  document.getElementById('share-card-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ')
+  let line = ''
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + ' '
+    if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+      ctx.fillText(line.trim(), x, y)
+      line = words[i] + ' '
+      y += lineHeight
+    } else {
+      line = testLine
+    }
+  }
+  ctx.fillText(line.trim(), x, y)
+}
+
+async function shareCard() {
+  const canvas = document.getElementById('share-canvas')
+  canvas.toBlob(async (blob) => {
+    const file = new File([blob], 'worldcupmap.jpg', { type: 'image/jpeg' })
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          text: `See how every country is picking the 2026 World Cup winner 🌍 worldcupmap.io`,
+        })
+      } catch (e) {
+        if (e.name !== 'AbortError') downloadCard()
+      }
+    } else {
+      downloadCard()
+    }
+  }, 'image/jpeg', 0.85)
+}
+
+function downloadCard() {
+  const canvas = document.getElementById('share-canvas')
+  const a = document.createElement('a')
+  a.download = 'worldcupmap.jpg'
+  a.href = canvas.toDataURL('image/jpeg', 0.85)
+  a.click()
 }
 
 function updatePickPromptVisibility() {

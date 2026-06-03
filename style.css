@@ -732,3 +732,63 @@ body {
     font-size: 13px;
   }
 }
+
+#share-card-wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px;
+  text-align: center;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+}
+
+#share-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+#share-preview {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+#share-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+#share-btn {
+  background: #25D366;
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#share-btn:hover { opacity: 0.88; }
+
+#download-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  border: 0.5px solid rgba(255,255,255,0.2);
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#download-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+@media (max-width: 640px) {
+  #share-buttons { flex-direction: column; width: 100%; }
+  #share-btn, #download-btn { width: 100%; min-height: 44px; }
+}
