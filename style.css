@@ -236,6 +236,29 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.history-round-header:hover .history-round-label {
+  color: rgba(255,255,255,0.7);
+}
+
+.history-round-chevron {
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  margin-left: auto;
+}
+
+.history-round-body {
+  padding-top: 8px;
+}
+
+.history-empty {
+  font-size: 11px;
+  color: rgba(255,255,255,0.2);
+  font-style: italic;
 }
 
 .history-round-label {
@@ -281,10 +304,6 @@ body {
   border-radius: 6px;
   font-size: 11px;
   border: 0.5px solid rgba(255,255,255,0.08);
-}
-
-.chip-unscored {
-  background: rgba(255,255,255,0.04);
 }
 
 .chip-correct {

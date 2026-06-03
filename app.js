@@ -1038,6 +1038,15 @@ function buildMap() {
   })
 }
 
+function toggleHistoryBlock(id) {
+  const body = document.getElementById(id)
+  const chevron = document.getElementById(id + '-chevron')
+  if (!body) return
+  const isOpen = body.style.display !== 'none'
+  body.style.display = isOpen ? 'none' : 'block'
+  if (chevron) chevron.textContent = isOpen ? '▾' : '▴'
+}
+
 async function loadPersonalStats() {
   if (!visitorFingerprint) return
   try {
@@ -1047,35 +1056,49 @@ async function loadPersonalStats() {
       body: JSON.stringify({ fingerprint: visitorFingerprint })
     })
     const data = await res.json()
-    if (!res.ok || data.insufficient_data) return
+    if (!res.ok) return
 
     const el = document.getElementById('personal-stats')
     if (!el) return
-    el.style.display = 'block'
 
+    const hasStats = !data.insufficient_data
+    const hasHistory = data.history && data.history.length > 0
+
+    if (!hasStats && !hasHistory) return
+
+    el.style.display = 'block'
     let html = ''
-    html += `<div id="personal-stats-top">`
-    html += `<div class="stat-item"><span class="stat-label">Predictions</span><span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span></div>`
-    html += `<div class="stat-item"><span class="stat-label">Global</span><span class="stat-value">Top ${100 - data.global_percentile}%</span></div>`
-    html += `<div class="stat-item"><span class="stat-label">National</span><span class="stat-value">Top ${100 - data.national_percentile}%</span></div>`
-    html += `</div>`
+
+    if (hasStats) {
+      html += `<div id="personal-stats-top">`
+      html += `<div class="stat-item"><span class="stat-label">Predictions</span><span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span></div>`
+      html += `<div class="stat-item"><span class="stat-label">Global</span><span class="stat-value">Top ${100 - data.global_percentile}%</span></div>`
+      html += `<div class="stat-item"><span class="stat-label">National</span><span class="stat-value">Top ${100 - data.national_percentile}%</span></div>`
+      html += `</div>`
+    }
 
     if (data.history && data.history.length > 0) {
       html += `<div id="personal-history">`
       html += `<div class="personal-history-title">My World Cup Journey</div>`
 
-      data.history.forEach(r => {
+      data.history.forEach((r, idx) => {
         const teamData = WC_TEAMS.find(t => t.name === r.tournamentPick)
         const teamColor = TEAM_COLORS[r.tournamentPick] || '#378ADD'
         const teamFlag = teamData ? teamData.flag : ''
         const accuracyStr = r.total > 0 ? `${r.correct}/${r.total}` : null
+        const isCurrentRound = r.round === currentRound
+        const blockId = `history-block-${r.round}`
+        const startOpen = isCurrentRound || idx === data.history.length - 1
 
         html += `<div class="history-round-block">`
 
-        html += `<div class="history-round-header">`
+        html += `<div class="history-round-header" onclick="toggleHistoryBlock('${blockId}')">`
         html += `<span class="history-round-label">${r.label}</span>`
         if (accuracyStr) html += `<span class="history-round-accuracy">${accuracyStr} correct</span>`
+        html += `<span class="history-round-chevron" id="${blockId}-chevron">${startOpen ? '▴' : '▾'}</span>`
         html += `</div>`
+
+        html += `<div class="history-round-body" id="${blockId}" style="display:${startOpen ? 'block' : 'none'}">`
 
         if (r.tournamentPick) {
           html += `<div class="history-champion-pick">
@@ -1087,9 +1110,8 @@ async function loadPersonalStats() {
         if (r.matchPicks && r.matchPicks.length > 0) {
           html += `<div class="history-match-chips">`
           r.matchPicks.forEach(m => {
-            const scored = m.score !== null
             const correct = m.score === 1
-            const chipClass = !scored ? 'chip-unscored' : correct ? 'chip-correct' : 'chip-wrong'
+            const chipClass = correct ? 'chip-correct' : 'chip-wrong'
             const homeActive = m.pick === m.home
             const awayActive = m.pick === m.away
             const drawActive = m.pick === 'Draw'
@@ -1101,9 +1123,11 @@ async function loadPersonalStats() {
             </div>`
           })
           html += `</div>`
+        } else if (!r.tournamentPick) {
+          html += `<div class="history-empty">No picks recorded this round</div>`
         }
 
-        html += `</div>`
+        html += `</div></div>`
       })
       html += `</div>`
     }

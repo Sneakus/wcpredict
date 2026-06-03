@@ -20,24 +20,7 @@ export default async function handler(req, res) {
     .eq('fingerprint_hash', fingerprintHash)
     .not('score', 'is', null)
 
-  if (!myPreds || myPreds.length < 3) {
-    return res.status(200).json({ insufficient_data: true })
-  }
-
-  const correct = myPreds.filter(p => p.score === 1).length
-  const total = myPreds.length
-  const myAccuracy = correct / total
-  const nation_iso2 = myPreds[0].nation_iso2
-
-  const { data: globalStats } = await supabase.rpc('get_accuracy_percentile', {
-    p_fingerprint_hash: fingerprintHash,
-    p_nation_iso2: null
-  })
-
-  const { data: nationalStats } = await supabase.rpc('get_accuracy_percentile', {
-    p_fingerprint_hash: fingerprintHash,
-    p_nation_iso2: nation_iso2
-  })
+  const hasEnoughForStats = myPreds && myPreds.length >= 3
 
   const { data: roundHistory } = await supabase
     .from('predictions')
@@ -63,17 +46,15 @@ export default async function handler(req, res) {
       if (row.tournament_winner && !history[r].tournamentPick) {
         history[r].tournamentPick = row.tournament_winner
       }
-      if (row.match_id && row.matches) {
+      if (row.match_id && row.matches && row.score !== null) {
         history[r].matchPicks.push({
           home: row.matches.home_team,
           away: row.matches.away_team,
           pick: row.predicted_winner,
           score: row.score,
         })
-        if (row.score !== null) {
-          history[r].total++
-          if (row.score === 1) history[r].correct++
-        }
+        history[r].total++
+        if (row.score === 1) history[r].correct++
       }
     })
   }
@@ -88,6 +69,28 @@ export default async function handler(req, res) {
       correct: history[r].correct,
       total: history[r].total,
     }))
+
+  if (!hasEnoughForStats) {
+    return res.status(200).json({
+      insufficient_data: true,
+      history: historyFormatted,
+    })
+  }
+
+  const correct = myPreds.filter(p => p.score === 1).length
+  const total = myPreds.length
+  const myAccuracy = correct / total
+  const nation_iso2 = myPreds[0].nation_iso2
+
+  const { data: globalStats } = await supabase.rpc('get_accuracy_percentile', {
+    p_fingerprint_hash: fingerprintHash,
+    p_nation_iso2: null
+  })
+
+  const { data: nationalStats } = await supabase.rpc('get_accuracy_percentile', {
+    p_fingerprint_hash: fingerprintHash,
+    p_nation_iso2: nation_iso2
+  })
 
   return res.status(200).json({
     correct,
