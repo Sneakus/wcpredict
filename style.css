@@ -204,7 +204,8 @@ body {
 
 #personal-history {
   border-top: 0.5px solid rgba(255,255,255,0.08);
-  padding-top: 12px;
+  padding-top: 14px;
+  margin-top: 4px;
 }
 
 .personal-history-title {
@@ -213,43 +214,89 @@ body {
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.personal-history-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.history-round-block {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
 }
 
-.history-row {
+.history-round-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.history-round-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
-  padding: 5px 0;
-  border-bottom: 0.5px solid rgba(255,255,255,0.05);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
-.history-row:last-child { border-bottom: none; }
-
-.history-round {
-  color: rgba(255,255,255,0.35);
-  width: 120px;
-  flex-shrink: 0;
+.history-round-label {
   font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  width: 110px;
+  flex-shrink: 0;
 }
 
-.history-pick {
+.history-wc-pick {
+  font-size: 12px;
   font-weight: 600;
   flex: 1;
 }
 
-.history-accuracy {
-  color: rgba(255,255,255,0.4);
+.history-round-accuracy {
   font-size: 11px;
+  color: rgba(255,255,255,0.35);
   white-space: nowrap;
 }
+
+.history-match-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 122px;
+}
+
+.history-match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+}
+
+.history-match-teams {
+  color: rgba(255,255,255,0.35);
+  flex-shrink: 0;
+  min-width: 160px;
+}
+
+.history-match-pick {
+  flex: 1;
+  color: rgba(255,255,255,0.55);
+}
+
+.history-match-pick strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.history-match-result {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.pick-correct { color: #4CAF50; }
+.pick-wrong   { color: #EF5350; }
 
 .stat-item {
   display: flex;
@@ -789,9 +836,18 @@ body {
   #personal-stats-top {
     gap: 12px;
   }
-  .history-round {
-    width: 90px;
-    font-size: 10px;
+
+  .history-match-picks {
+    padding-left: 0;
+    margin-top: 6px;
+  }
+  .history-match-teams {
+    min-width: 0;
+    flex: 1;
+  }
+  .history-match-row {
+    flex-wrap: wrap;
+    gap: 4px;
   }
 }
 

@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
   const { data: roundHistory } = await supabase
     .from('predictions')
-    .select('round, tournament_winner, match_id, predicted_winner, score')
+    .select('round, tournament_winner, match_id, predicted_winner, score, matches(home_team, away_team, kickoff_at)')
     .eq('fingerprint_hash', fingerprintHash)
     .order('created_at', { ascending: true })
 
@@ -59,9 +59,17 @@ export default async function handler(req, res) {
   if (roundHistory) {
     roundHistory.forEach(row => {
       const r = row.round || 'group_stage'
-      if (!history[r]) history[r] = { tournamentPick: null, correct: 0, total: 0 }
-      if (row.tournament_winner) history[r].tournamentPick = row.tournament_winner
-      if (row.match_id) {
+      if (!history[r]) history[r] = { tournamentPick: null, matchPicks: [], correct: 0, total: 0 }
+      if (row.tournament_winner && !history[r].tournamentPick) {
+        history[r].tournamentPick = row.tournament_winner
+      }
+      if (row.match_id && row.matches) {
+        history[r].matchPicks.push({
+          home: row.matches.home_team,
+          away: row.matches.away_team,
+          pick: row.predicted_winner,
+          score: row.score,
+        })
         if (row.score !== null) {
           history[r].total++
           if (row.score === 1) history[r].correct++
@@ -76,6 +84,7 @@ export default async function handler(req, res) {
       round: r,
       label: roundLabels[r],
       tournamentPick: history[r].tournamentPick,
+      matchPicks: history[r].matchPicks,
       correct: history[r].correct,
       total: history[r].total,
     }))
