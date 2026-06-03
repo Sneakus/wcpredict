@@ -59,13 +59,27 @@ body {
   color: rgba(255,255,255,0.35);
 }
 
+#header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 #map-wrap {
   position: relative;
   background: #111;
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
 }
 
-#map svg { display: block; width: 100%; }
+#map svg {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 #tooltip {
   display: none;
@@ -413,3 +427,192 @@ body {
 }
 
 .hidden { display: none; }
+
+@media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  #header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  #header-left {
+    min-width: 0;
+  }
+
+  #header h1 {
+    font-size: 18px;
+  }
+
+  .sub {
+    font-size: 11px;
+    line-height: 1.4;
+    max-width: 100%;
+  }
+
+  #header-controls {
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+    margin-left: 0;
+  }
+
+  #view-toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .vtab {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 11px;
+    min-height: 44px;
+  }
+
+  #prediction-count {
+    flex: 1 1 100%;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  #map-wrap {
+    overflow: hidden;
+  }
+
+  #zoom-controls {
+    bottom: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+
+  #zoom-controls button {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  #legend {
+    gap: 6px 10px;
+    padding: 8px 14px;
+  }
+
+  .leg-item {
+    font-size: 10px;
+  }
+
+  #panels {
+    grid-template-columns: 1fr;
+  }
+
+  #panel-left {
+    border-right: none;
+    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+    padding: 12px 14px;
+  }
+
+  #panel-right {
+    padding: 12px 14px;
+  }
+
+  #predict-panel {
+    padding: 0;
+  }
+
+  #tournament-pick-panel,
+  #match-predict-panel {
+    padding: 12px 14px;
+  }
+
+  #tournament-teams {
+    gap: 8px;
+  }
+
+  .team-btn {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .match-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+  }
+
+  .match-time {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .match-teams {
+    flex: 1 1 calc(100% - 56px);
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .match-pick {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .pick-btn {
+    min-height: 44px;
+    padding: 8px 6px;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #submit-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  #country-select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #submit-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 12px 18px;
+    font-size: 15px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #about-section {
+    margin: 0 14px 16px;
+  }
+
+  #about-section summary {
+    padding: 14px;
+    font-size: 13px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #about-section summary::after {
+    float: none;
+  }
+
+  #about-section .about-item p {
+    font-size: 13px;
+  }
+}
