@@ -84,7 +84,7 @@ const COUNTRY_NAME_TO_ISO = {
   'North Korea':                'KP',
   'Iran':                       'IR',
   'Syria':                      'SY',
-  'Türkiye':                    'TR',
+  'Turkey':                     'TR',
   'Venezuela':                  'VE',
   'Bolivia':                    'BO',
   'Tanzania':                   'TZ',
