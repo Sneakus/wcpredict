@@ -606,9 +606,41 @@ function buildMap() {
   })
 }
 
+async function loadPersonalStats() {
+  if (!visitorFingerprint) return
+  try {
+    const res = await fetch('/api/stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fingerprint: visitorFingerprint })
+    })
+    const data = await res.json()
+    if (!res.ok || data.insufficient_data) return
+
+    const el = document.getElementById('personal-stats')
+    if (!el) return
+    el.style.display = 'flex'
+    el.innerHTML = `
+      <div class="stat-item">
+        <span class="stat-label">Your predictions</span>
+        <span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Global ranking</span>
+        <span class="stat-value">Top ${100 - data.global_percentile}% worldwide</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">National ranking</span>
+        <span class="stat-value">Top ${100 - data.national_percentile}% in your country</span>
+      </div>
+    `
+  } catch (e) {
+    console.warn('Personal stats unavailable:', e)
+  }
+}
+
 async function init() {
-  // Init fingerprint in parallel — non-blocking
-  initFingerprint()
+  await initFingerprint()
   await loadNations()
   await loadNationData()
   await loadTodayMatches()
@@ -617,6 +649,7 @@ async function init() {
   buildLegend()
   buildLeaderboards()
   buildMap()
+  loadPersonalStats()
 }
 
 init()
