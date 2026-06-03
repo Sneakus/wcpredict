@@ -126,6 +126,15 @@ const COUNTRY_NAME_TO_ISO = {
   'Puerto Rico':                'PR',
   'New Caledonia':              'NC',
   'French Guiana':              'GF',
+  'Dem. Rep. Congo':            'CD',
+  'Dominican Rep.':             'DO',
+  'Falkland Is.':               null,
+  'Fr. S. Antarctic Lands':     null,
+  'eSwatini':                   'SZ',
+  'Palestine':                  'PS',
+  'Solomon Is.':                'SB',
+  'N. Cyprus':                  null,
+  'Guinea-Bissau':              'GW',
 }
 
 let currentView = 'wc'
@@ -495,7 +504,7 @@ function updateMapColors() {
     if (!name) return '#1e1e1e'
     if (name === 'United Kingdom') return resolveUKColor() || '#1e1e1e'
     const iso = resolveIso(name)
-    if (iso === undefined) unresolved.push(name)
+    if (!COUNTRY_NAME_TO_ISO.hasOwnProperty(name) && !nations.find(n => n.name === name)) unresolved.push(name)
     if (iso === null && COUNTRY_NAME_TO_ISO.hasOwnProperty(name)) return '#1e1e1e'
     return getColorForIso(iso) || '#1e1e1e'
   })
