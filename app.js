@@ -489,14 +489,17 @@ function resolveUKColor() {
 
 function updateMapColors() {
   if (!svgPaths) return
+  const unresolved = []
   svgPaths.attr('fill', d => {
     const name = d.properties && d.properties.name
     if (!name) return '#1e1e1e'
     if (name === 'United Kingdom') return resolveUKColor() || '#1e1e1e'
     const iso = resolveIso(name)
+    if (iso === undefined) unresolved.push(name)
     if (iso === null && COUNTRY_NAME_TO_ISO.hasOwnProperty(name)) return '#1e1e1e'
     return getColorForIso(iso) || '#1e1e1e'
   })
+  if (unresolved.length) console.warn('Unresolved country names:', unresolved)
 }
 
 function buildTooltipWC(nd) {
