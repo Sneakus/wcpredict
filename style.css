@@ -125,30 +125,6 @@ body {
 
 .tt-bar-fill { height: 100%; border-radius: 2px; }
 
-#legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 0.5px solid rgba(255,255,255,0.08);
-  background: #0f0f0f;
-}
-
-.leg-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-}
-
-.leg-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
 #personal-stats {
   display: flex;
   gap: 24px;
@@ -535,15 +511,6 @@ body {
     width: 44px;
     height: 44px;
     font-size: 18px;
-  }
-
-  #legend {
-    gap: 6px 10px;
-    padding: 8px 14px;
-  }
-
-  .leg-item {
-    font-size: 10px;
   }
 
   #panels {

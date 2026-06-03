@@ -338,14 +338,6 @@ async function submitPredictions() {
   }
 }
 
-function buildLegend() {
-  const el = document.getElementById('legend')
-  el.innerHTML = ''
-  TEAMS.forEach(t => {
-    el.innerHTML += `<div class="leg-item"><div class="leg-dot" style="background:${t.color}"></div>${t.name}</div>`
-  })
-}
-
 function buildLeaderboards() {
   const pickEl = document.getElementById('lb-pick')
   const accEl = document.getElementById('lb-acc')
@@ -684,7 +676,6 @@ async function init() {
   await loadTodayMatches()
   await loadPredictionCount()
   buildTournamentPicker()
-  buildLegend()
   buildLeaderboards()
   buildMap()
   loadPersonalStats()
