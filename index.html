@@ -82,17 +82,6 @@
       <button id="submit-btn" onclick="submitPredictions()">Submit picks</button>
     </div>
 
-    <div id="share-card-wrap" style="display:none">
-      <canvas id="share-canvas" width="1080" height="1920" style="display:none"></canvas>
-      <div id="share-preview-wrap">
-        <img id="share-preview" alt="Your World Cup Map card" />
-        <div id="share-buttons">
-          <button id="share-btn" onclick="shareCard()">Share to WhatsApp</button>
-          <button id="download-btn" onclick="downloadCard()">Save image</button>
-        </div>
-      </div>
-    </div>
-
     <div id="personal-stats" style="display:none"></div>
 
     <details id="about-section">
@@ -116,7 +105,25 @@
         </div>
       </div>
     </details>
+
+    <div id="share-modal" style="display:none">
+      <div id="share-modal-backdrop" onclick="closeShareModal()"></div>
+      <div id="share-modal-content">
+        <button id="share-modal-close" onclick="closeShareModal()">✕</button>
+        <div id="share-modal-header">
+          <div id="share-modal-title">Your pick is on the map 🌍</div>
+          <div id="share-modal-subtitle">Share your prediction with the world</div>
+        </div>
+        <canvas id="share-canvas" width="1080" height="1920" style="display:none"></canvas>
+        <img id="share-preview" alt="Your World Cup Map card" />
+        <div id="share-buttons">
+          <button id="share-btn" onclick="shareCard()">Share to WhatsApp</button>
+          <button id="download-btn" onclick="downloadCard()">Save image</button>
+        </div>
+        <div id="share-modal-skip" onclick="closeShareModal()">No thanks, skip</div>
+      </div>
+    </div>
   </div>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

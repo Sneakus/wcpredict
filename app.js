@@ -377,129 +377,25 @@ function scrollToPredict() {
   document.getElementById('tournament-pick-panel').scrollIntoView({ behavior: 'smooth' })
 }
 
-async function generateShareCard(iso2) {
-  if (!tournamentWinner) return
-  const nd = nationData[iso2]
-  if (!nd) return
-
-  const picks = nd.tournamentPicks || {}
-  const totalVotes = Object.values(picks).reduce((s, v) => s + v, 0)
-  const topPick = Object.entries(picks).sort((a, b) => b[1] - a[1])[0]
-  const countryTopTeam = topPick ? topPick[0] : null
-  const countryTopPct = topPick && totalVotes > 0 ? Math.round(topPick[1] / totalVotes * 100) : null
-  const userVotes = picks[tournamentWinner] || 0
-  const userPct = totalVotes > 0 ? Math.round(userVotes / totalVotes * 100) : null
-  const isContrarian = countryTopTeam && tournamentWinner !== countryTopTeam
-  const isSelfPick = tournamentWinner === nd.name
-
-  const countriesBackingSameTeam = Object.values(nationData)
-    .filter(n => n.pick === tournamentWinner).length
-
-  let headlineLine1 = ''
-  let headlineLine2 = ''
-  let statLine = ''
-
-  const nationName = nd.name ? nd.name.toUpperCase() : iso2
-  const teamName = tournamentWinner.toUpperCase()
-
-  if (isSelfPick) {
-    headlineLine1 = `${nationName} backs`
-    headlineLine2 = teamName
-    statLine = countriesBackingSameTeam <= 3
-      ? `One of only ${countriesBackingSameTeam} nations backing themselves 🔥`
-      : `${countriesBackingSameTeam} nations backing the home side`
-  } else if (isContrarian && userPct !== null && userPct < 30) {
-    headlineLine1 = `${nationName} — the minority view`
-    headlineLine2 = teamName
-    statLine = countryTopPct !== null
-      ? `${100 - countryTopPct}% of ${nd.name} disagrees — back them anyway 🔥`
-      : `Going against the grain`
-  } else {
-    headlineLine1 = `${nationName} backs`
-    headlineLine2 = teamName
-    statLine = countryTopPct !== null && totalVotes >= 3
-      ? `${countryTopPct}% of ${nd.name} agrees`
-      : `Add your pick to the map`
+function isoToTwemojiUrl(iso2) {
+  if (!iso2 || iso2.startsWith('GB-')) {
+    const code = 'gb'
+    return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f1ec-1f1e7.png`
   }
+  const points = iso2.toUpperCase().split('').map(c =>
+    (0x1F1E6 + c.charCodeAt(0) - 65).toString(16)
+  )
+  return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${points.join('-')}.png`
+}
 
-  const canvas = document.getElementById('share-canvas')
-  const ctx = canvas.getContext('2d')
-  const W = 1080, H = 1920
-  canvas.width = W; canvas.height = H
-
-  const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
-
-  ctx.fillStyle = '#0a0a0a'
-  ctx.fillRect(0, 0, W, H)
-
-  const grad = ctx.createLinearGradient(0, H * 0.45, 0, H)
-  grad.addColorStop(0, 'rgba(0,0,0,0)')
-  grad.addColorStop(1, teamColor + '22')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, W, H)
-
-  ctx.fillStyle = teamColor
-  ctx.fillRect(0, 0, W, 8)
-
-  const SAFE_TOP = 140
-  const SAFE_BOTTOM = 1560
-
-  ctx.fillStyle = 'rgba(255,255,255,0.35)'
-  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('WORLD CUP MAP', 80, SAFE_TOP)
-
-  ctx.font = '160px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  const flagEmoji = getFlagEmoji(iso2)
-  ctx.fillText(flagEmoji, 72, SAFE_TOP + 230)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.font = '600 72px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText(headlineLine1, 80, SAFE_TOP + 390)
-
-  ctx.fillStyle = teamColor
-  ctx.font = '800 128px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.fillText(headlineLine2, 80, SAFE_TOP + 540)
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(80, SAFE_TOP + 600)
-  ctx.lineTo(W - 80, SAFE_TOP + 600)
-  ctx.stroke()
-
-  if (countryTopPct !== null && totalVotes >= 3) {
-    const pctStr = isContrarian ? `${userPct || ''}%` : `${countryTopPct}%`
-    ctx.fillStyle = '#fff'
-    ctx.font = '800 320px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(pctStr, W / 2, SAFE_TOP + 980)
-  }
-
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.font = '500 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'center'
-  wrapText(ctx, statLine, W / 2, SAFE_TOP + 1060, W - 160, 68)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.25)'
-  ctx.font = '400 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('Add your country\'s pick →', 80, SAFE_BOTTOM - 80)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  ctx.font = '600 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'right'
-  ctx.fillText('worldcupmap.io', W - 80, SAFE_BOTTOM - 80)
-
-  ctx.fillStyle = teamColor
-  ctx.fillRect(0, H - 8, W, 8)
-
-  const preview = document.getElementById('share-preview')
-  preview.src = canvas.toDataURL('image/jpeg', 0.85)
-  document.getElementById('share-card-wrap').style.display = 'block'
-  document.getElementById('share-card-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' })
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Image load failed: ' + url))
+    img.src = url
+  })
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
@@ -516,6 +412,176 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     }
   }
   ctx.fillText(line.trim(), x, y)
+}
+
+async function generateShareCard(iso2) {
+  if (!tournamentWinner) return
+  const nd = nationData[iso2]
+  if (!nd) return
+
+  const tPicks = nd.tournamentPicks || {}
+  const totalVotes = Object.values(tPicks).reduce((s, v) => s + v, 0)
+  const topEntry = Object.entries(tPicks).sort((a, b) => b[1] - a[1])[0]
+  const countryTopTeam = topEntry ? topEntry[0] : null
+  const countryTopPct = topEntry && totalVotes > 0 ? Math.round(topEntry[1] / totalVotes * 100) : null
+  const myVotes = tPicks[tournamentWinner] || 0
+  const myPct = totalVotes > 0 ? Math.round(myVotes / totalVotes * 100) : null
+  const isContrarian = countryTopTeam && tournamentWinner !== countryTopTeam
+  const isSelfPick = tournamentWinner === nd.name
+  const hasEnoughData = totalVotes >= 3
+
+  const countriesBackingSameTeam = Object.values(nationData)
+    .filter(n => n.pick === tournamentWinner).length
+
+  const nationDisplayName = nd.name || iso2
+  const teamData = WC_TEAMS.find(t => t.name === tournamentWinner)
+  const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
+
+  let tagline = ''
+  let statBig = ''
+  let statSub = ''
+
+  if (isSelfPick) {
+    tagline = `I'm backing the home side 🏠`
+    statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
+    statSub = hasEnoughData
+      ? `of ${nationDisplayName} agrees`
+      : `Be one of the first from ${nationDisplayName} to pick`
+  } else if (isContrarian && hasEnoughData && myPct !== null && myPct < 35) {
+    tagline = `I'm going against the grain 🔥`
+    statBig = `${myPct}%`
+    statSub = `of ${nationDisplayName} agrees with me — the rest are wrong`
+  } else {
+    tagline = `I'm backing ${tournamentWinner}`
+    statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
+    statSub = hasEnoughData
+      ? `of ${nationDisplayName} agrees`
+      : `Add your pick to the map`
+  }
+
+  let globalLine = ''
+  if (countriesBackingSameTeam === 1) {
+    globalLine = `The only country backing ${tournamentWinner}`
+  } else if (countriesBackingSameTeam <= 4) {
+    globalLine = `1 of only ${countriesBackingSameTeam} nations backing ${tournamentWinner}`
+  } else {
+    globalLine = `${countriesBackingSameTeam} nations are backing ${tournamentWinner}`
+  }
+
+  let flagImg = null
+  try {
+    flagImg = await loadImage(isoToTwemojiUrl(iso2))
+  } catch (e) {
+    console.warn('Flag load failed, skipping:', e)
+  }
+
+  const canvas = document.getElementById('share-canvas')
+  const ctx = canvas.getContext('2d')
+  const W = 1080, H = 1920
+  canvas.width = W; canvas.height = H
+
+  ctx.fillStyle = '#0d0d0d'
+  ctx.fillRect(0, 0, W, H)
+
+  const grad = ctx.createLinearGradient(0, H * 0.5, 0, H)
+  grad.addColorStop(0, 'rgba(0,0,0,0)')
+  grad.addColorStop(1, teamColor + '30')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, 0, W, 10)
+
+  const PAD = 88
+
+  ctx.fillStyle = 'rgba(255,255,255,0.3)'
+  ctx.font = '500 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('MY 2026 WORLD CUP PICK', PAD, 180)
+
+  if (flagImg) {
+    const flagSize = 200
+    const flagX = PAD
+    const flagY = 230
+    ctx.save()
+    ctx.beginPath()
+    ctx.roundRect(flagX, flagY, flagSize, flagSize * 0.75, 12)
+    ctx.clip()
+    ctx.drawImage(flagImg, flagX, flagY, flagSize, flagSize * 0.75)
+    ctx.restore()
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'
+  ctx.font = '600 56px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText(nationDisplayName.toUpperCase(), PAD + 230, 340)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'
+  ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  wrapText(ctx, tagline, PAD, 490, W - PAD * 2, 70)
+
+  ctx.fillStyle = teamColor
+  ctx.font = '800 148px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  const teamDisplayName = tournamentWinner.toUpperCase()
+  let teamFontSize = 148
+  ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+  while (ctx.measureText(teamDisplayName).width > W - PAD * 2 && teamFontSize > 80) {
+    teamFontSize -= 8
+    ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+  }
+  ctx.fillText(teamDisplayName, PAD, 680)
+
+  ctx.strokeStyle = teamColor + '44'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(PAD, 730)
+  ctx.lineTo(W - PAD, 730)
+  ctx.stroke()
+
+  if (statBig) {
+    ctx.fillStyle = '#fff'
+    ctx.font = '800 340px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(statBig, W / 2, 1130)
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '500 54px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    wrapText(ctx, statSub, W / 2, 1200, W - PAD * 2, 72)
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    wrapText(ctx, statSub, W / 2, 1000, W - PAD * 2, 72)
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.font = '400 42px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  wrapText(ctx, globalLine, W / 2, 1380, W - PAD * 2, 60)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'
+  ctx.font = '400 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('Add your country\'s pick →', PAD, 1820)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.font = '600 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('worldcupmap.io', W - PAD, 1820)
+
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, H - 10, W, 10)
+
+  const preview = document.getElementById('share-preview')
+  preview.src = canvas.toDataURL('image/jpeg', 0.85)
+  document.getElementById('share-modal').style.display = 'flex'
+}
+
+function closeShareModal() {
+  document.getElementById('share-modal').style.display = 'none'
 }
 
 async function shareCard() {
