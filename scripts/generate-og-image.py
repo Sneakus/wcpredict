@@ -22,7 +22,7 @@ W, H = 1200, 630
 PAD = 40
 BG = "#0a0a0a"
 TEXT = "#ffffff"
-SUBTEXT = "#b4b4af"
+SUBTEXT = "#ffffff"
 
 # Same colours as TEAMS / TEAM_COLORS in app.js
 TEAM_COLORS = [
