@@ -31,10 +31,6 @@
         <p class="sub">Who does the world think wins the 2026 FIFA World Cup?</p>
       </div>
       <div id="header-controls">
-        <div id="view-toggle">
-          <button class="vtab active" data-view="wc" onclick="switchView('wc',this)">WC winner</button>
-          <button class="vtab" data-view="matchday" onclick="switchView('matchday',this)">Today's matches</button>
-        </div>
         <div id="prediction-count">Loading...</div>
       </div>
     </header>
@@ -44,6 +40,10 @@
       <div id="tooltip">
         <div class="tt-country"></div>
         <div id="tt-body"></div>
+      </div>
+      <div id="view-toggle">
+        <button class="vtab active" data-view="wc" onclick="switchView('wc',this)">🏆 WC winner</button>
+        <button class="vtab" data-view="matchday" onclick="switchView('matchday',this)">⚽ Today's matches</button>
       </div>
       <div id="pick-prompt">
         <span id="pick-prompt-text">🏆🌍 Add your predictions to the map</span>
@@ -105,6 +105,6 @@
       </div>
     </details>
   </div>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
