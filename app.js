@@ -331,10 +331,23 @@ async function submitPredictions() {
     await loadNationData()
     updateMapColors()
     buildLeaderboards()
+    updatePickPrompt()
   } else {
     alert(result.error || 'Something went wrong')
     if (window.turnstile) turnstile.reset()
     btn.disabled = false; btn.textContent = 'Submit picks'
+  }
+}
+
+function scrollToPredict() {
+  document.getElementById('tournament-pick-panel').scrollIntoView({ behavior: 'smooth' })
+}
+
+function updatePickPrompt() {
+  const el = document.getElementById('pick-prompt')
+  if (!el) return
+  if (getCookie('wcp_tournament_winner')) {
+    el.style.display = 'none'
   }
 }
 
@@ -685,6 +698,7 @@ async function init() {
   buildLeaderboards()
   buildMap()
   loadPersonalStats()
+  updatePickPrompt()
 }
 
 init()

@@ -134,6 +134,39 @@ body {
 
 .tt-bar-fill { height: 100%; border-radius: 2px; }
 
+#pick-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(55, 138, 221, 0.12);
+  border-top: 0.5px solid rgba(55, 138, 221, 0.3);
+  border-bottom: 0.5px solid rgba(55, 138, 221, 0.3);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#pick-prompt-text {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+}
+
+#pick-prompt-btn {
+  background: #378ADD;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+#pick-prompt-btn:hover {
+  background: #2d6ab5;
+}
+
 #personal-stats {
   display: flex;
   gap: 24px;
@@ -458,6 +491,11 @@ body {
 @media (max-width: 640px) {
   body {
     overflow-x: hidden;
+  }
+
+  #pick-prompt {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   #header {
