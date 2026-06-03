@@ -477,11 +477,11 @@ async function generateShareCard(iso2) {
   let globalLine = ''
   if (hasAccData) {
     if (accRank === 1) {
-      globalLine = `Think another nation can top us? 👀`
+      globalLine = `Think anyone can top us? 👀`
     } else if (accRank <= 3) {
-      globalLine = `We're coming for #1. Can you stop us?`
+      globalLine = `We're coming for #1. Can anyone stop us?`
     } else if (accRank <= 10) {
-      globalLine = `We're in the hunt. Where does your nation rank?`
+      globalLine = `We're in the hunt. Can anyone catch us?`
     } else {
       globalLine = `Think your nation knows better? Prove it.`
     }
@@ -612,7 +612,7 @@ async function generateShareCard(iso2) {
     wrapText(ctx, statSub, W / 2, 1280, W - PAD * 2, 72)
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '500 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.font = '500 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
     wrapText(ctx, globalLine, W / 2, 1530, W - PAD * 2, 68)
   } else {
