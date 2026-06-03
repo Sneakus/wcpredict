@@ -66,6 +66,7 @@ const WC_TEAMS = [
   { name: 'USA',          flag: '🇺🇸', color: '#1B2A4A' },
   { name: 'Venezuela',    flag: '🇻🇪', color: '#6E2639' },
 ]
+WC_TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 
 const UK_NATIONS = [
   { name: 'England',          iso: 'GB-ENG' },
