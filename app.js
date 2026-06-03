@@ -1072,8 +1072,8 @@ async function loadPersonalStats() {
     if (hasStats) {
       html += `<div id="personal-stats-top">`
       html += `<div class="stat-item"><span class="stat-label">Predictions</span><span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span></div>`
-      html += `<div class="stat-item"><span class="stat-label">Global</span><span class="stat-value">Top ${100 - data.global_percentile}%</span></div>`
-      html += `<div class="stat-item"><span class="stat-label">National</span><span class="stat-value">Top ${100 - data.national_percentile}%</span></div>`
+      html += `<div class="stat-item"><span class="stat-label">Global</span><span class="stat-value">Top ${Math.max(1, 100 - data.global_percentile)}%</span></div>`
+      html += `<div class="stat-item"><span class="stat-label">National</span><span class="stat-value">Top ${Math.max(1, 100 - data.national_percentile)}%</span></div>`
       html += `</div>`
     }
 
@@ -1107,11 +1107,13 @@ async function loadPersonalStats() {
         html += `<div class="history-round-body" id="${blockId}" style="display:${startOpen ? 'block' : 'none'}">`
 
         if (r.percentiles && r.percentiles.global !== null && r.total >= 2) {
+          const globalTop = Math.max(1, 100 - r.percentiles.global)
+          const nationalTop = Math.max(1, 100 - r.percentiles.national)
           html += `<div class="round-percentiles">`
-          html += `<span class="round-percentile-item">🌍 Top ${100 - r.percentiles.global}% globally this round</span>`
+          html += `<span class="round-percentile-item">Top ${globalTop}% globally this round</span>`
           if (r.percentiles.national !== null) {
             html += `<span class="round-percentile-sep">·</span>`
-            html += `<span class="round-percentile-item">🏳️ Top ${100 - r.percentiles.national}% in your country</span>`
+            html += `<span class="round-percentile-item">Top ${nationalTop}% in your country</span>`
           }
           html += `</div>`
         }
