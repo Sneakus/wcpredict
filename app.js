@@ -6,12 +6,12 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const TEAMS = [
   { name: 'Brazil',    iso: 'BR',     color: '#639922' },
   { name: 'France',    iso: 'FR',     color: '#185FA5' },
-  { name: 'England',   iso: 'GB-ENG', color: '#993C1D' },
-  { name: 'Spain',     iso: 'ES',     color: '#D85A30' },
-  { name: 'Argentina', iso: 'AR',     color: '#5DCAA5' },
+  { name: 'England',   iso: 'GB-ENG', color: '#EFEFEF' },
+  { name: 'Spain',     iso: 'ES',     color: '#C60B1E' },
+  { name: 'Argentina', iso: 'AR',     color: '#75AADB' },
   { name: 'Germany',   iso: 'DE',     color: '#888780' },
-  { name: 'Portugal',  iso: 'PT',     color: '#A32D2D' },
-  { name: 'USA',       iso: 'US',     color: '#7F77DD' },
+  { name: 'Portugal',  iso: 'PT',     color: '#A4123F' },
+  { name: 'USA',       iso: 'US',     color: '#1B2A4A' },
 ]
 const TEAM_COLORS = {}
 TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
