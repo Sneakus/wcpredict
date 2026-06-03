@@ -19,10 +19,17 @@ from matplotlib import font_manager
 from PIL import Image
 
 W, H = 1200, 630
-PAD = 40
 BG = "#0a0a0a"
 TEXT = "#ffffff"
 SUBTEXT = "#ffffff"
+
+# Layout tuned for 1200×630 OG cards — map is the hero, text is compact left band
+TEXT_X = 0.04
+MAP_AXES = (0.27, 0.04, 0.71, 0.92)  # left, bottom, width, height (figure coords)
+TITLE_SIZE = 58
+SUBTITLE_SIZE = 28
+TITLE_Y = 0.56
+SUBTITLE_Y = 0.40
 
 
 def load_font(bold: bool, size: int):
@@ -67,37 +74,43 @@ def main() -> None:
     fig_w, fig_h = W / dpi, H / dpi
     fig = plt.figure(figsize=(fig_w, fig_h), facecolor=BG, dpi=dpi)
 
-    # Shifted up to match live map (no Antarctica, translate height / 2.1)
-    ax = fig.add_axes([0.36, 0.03, 0.62, 0.93])
+    ax = fig.add_axes(MAP_AXES)
     ax.set_facecolor(BG)
     world.plot(
         ax=ax,
         color=world["fill"],
         edgecolor="#1f2430",
-        linewidth=0.25,
+        linewidth=0.22,
         antialiased=True,
     )
     ax.axis("off")
 
-    title_font = load_font(True, 72)
-    sub_font = load_font(False, 34)
+    # Crop to landmass bounds (Antarctica already removed) so the map fills its frame
+    minx, miny, maxx, maxy = world.total_bounds
+    pad_x = (maxx - minx) * 0.015
+    pad_y = (maxy - miny) * 0.02
+    ax.set_xlim(minx - pad_x, maxx + pad_x)
+    ax.set_ylim(miny - pad_y, maxy + pad_y)
+
+    title_font = load_font(True, TITLE_SIZE)
+    sub_font = load_font(False, SUBTITLE_SIZE)
     fig.text(
-        PAD / W,
-        1 - (PAD + 78) / H,
+        TEXT_X,
+        TITLE_Y,
         "WCPredict",
         color=TEXT,
         fontproperties=title_font,
         ha="left",
-        va="top",
+        va="center",
     )
     fig.text(
-        PAD / W,
-        1 - (PAD + 148) / H,
+        TEXT_X,
+        SUBTITLE_Y,
         "Who does the world back?",
         color=SUBTEXT,
         fontproperties=sub_font,
         ha="left",
-        va="top",
+        va="center",
     )
 
     fig.savefig(out_path, dpi=dpi, facecolor=BG)
