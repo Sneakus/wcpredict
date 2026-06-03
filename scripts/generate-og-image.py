@@ -61,12 +61,14 @@ def main() -> None:
             f"og-map-fills.json has {len(country_fills)}"
         )
     world["fill"] = country_fills
+    world = world[world["NAME"] != "Antarctica"]
 
     dpi = 100
     fig_w, fig_h = W / dpi, H / dpi
     fig = plt.figure(figsize=(fig_w, fig_h), facecolor=BG, dpi=dpi)
 
-    ax = fig.add_axes([0.36, 0.06, 0.62, 0.88])
+    # Shifted up to match live map (no Antarctica, translate height / 2.1)
+    ax = fig.add_axes([0.36, 0.03, 0.62, 0.93])
     ax.set_facecolor(BG)
     world.plot(
         ax=ax,
