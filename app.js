@@ -437,6 +437,16 @@ async function generateShareCard(iso2) {
   const teamData = WC_TEAMS.find(t => t.name === tournamentWinner)
   const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
 
+  function getLuminance(hex) {
+    const r = parseInt(hex.slice(1,3),16)/255
+    const g = parseInt(hex.slice(3,5),16)/255
+    const b = parseInt(hex.slice(5,7),16)/255
+    return 0.2126*r + 0.7152*g + 0.0722*b
+  }
+  const teamColorIsLight = getLuminance(teamColor) > 0.15
+  const teamTextColor = teamColorIsLight ? teamColor : '#fff'
+  const accentColor = teamColorIsLight ? teamColor : '#378ADD'
+
   let tagline = ''
   let statBig = ''
   let statSub = ''
@@ -485,11 +495,11 @@ async function generateShareCard(iso2) {
 
   const grad = ctx.createLinearGradient(0, H * 0.5, 0, H)
   grad.addColorStop(0, 'rgba(0,0,0,0)')
-  grad.addColorStop(1, teamColor + '30')
+  grad.addColorStop(1, accentColor + '30')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, W, H)
 
-  ctx.fillStyle = teamColor
+  ctx.fillStyle = accentColor
   ctx.fillRect(0, 0, W, 10)
 
   const PAD = 88
@@ -505,9 +515,9 @@ async function generateShareCard(iso2) {
     const flagY = 230
     ctx.save()
     ctx.beginPath()
-    ctx.roundRect(flagX, flagY, flagSize, flagSize * 0.75, 12)
+    ctx.roundRect(flagX, flagY, flagSize, flagSize, 16)
     ctx.clip()
-    ctx.drawImage(flagImg, flagX, flagY, flagSize, flagSize * 0.75)
+    ctx.drawImage(flagImg, flagX, flagY, flagSize, flagSize)
     ctx.restore()
   }
 
@@ -521,7 +531,7 @@ async function generateShareCard(iso2) {
   ctx.textAlign = 'left'
   wrapText(ctx, tagline, PAD, 490, W - PAD * 2, 70)
 
-  ctx.fillStyle = teamColor
+  ctx.fillStyle = teamTextColor
   ctx.font = '800 148px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   ctx.textAlign = 'left'
   const teamDisplayName = tournamentWinner.toUpperCase()
@@ -533,7 +543,7 @@ async function generateShareCard(iso2) {
   }
   ctx.fillText(teamDisplayName, PAD, 680)
 
-  ctx.strokeStyle = teamColor + '44'
+  ctx.strokeStyle = accentColor + '44'
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.moveTo(PAD, 730)
@@ -550,17 +560,22 @@ async function generateShareCard(iso2) {
     ctx.font = '500 54px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
     wrapText(ctx, statSub, W / 2, 1200, W - PAD * 2, 72)
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'
-    ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W / 2, 1000, W - PAD * 2, 72)
-  }
 
-  ctx.fillStyle = 'rgba(255,255,255,0.25)'
-  ctx.font = '400 42px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'center'
-  wrapText(ctx, globalLine, W / 2, 1380, W - PAD * 2, 60)
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'
+    ctx.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    wrapText(ctx, globalLine, W / 2, 1420, W - PAD * 2, 64)
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'
+    ctx.font = '400 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    wrapText(ctx, statSub, W / 2, 900, W - PAD * 2, 80)
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '600 64px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    wrapText(ctx, globalLine, W / 2, 1100, W - PAD * 2, 80)
+  }
 
   ctx.fillStyle = 'rgba(255,255,255,0.2)'
   ctx.font = '400 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -572,7 +587,7 @@ async function generateShareCard(iso2) {
   ctx.textAlign = 'right'
   ctx.fillText('worldcupmap.io', W - PAD, 1820)
 
-  ctx.fillStyle = teamColor
+  ctx.fillStyle = accentColor
   ctx.fillRect(0, H - 10, W, 10)
 
   const preview = document.getElementById('share-preview')
