@@ -478,6 +478,14 @@ async function generateShareCard(iso2) {
     globalLine = `${countriesBackingSameTeam} nations are backing ${tournamentWinner}`
   }
 
+  const accRanked = Object.values(nationData)
+    .filter(d => d.acc !== null)
+    .sort((a, b) => b.acc - a.acc)
+  const accRankIndex = accRanked.findIndex(d => d.iso === iso2)
+  const accRank = accRankIndex >= 0 ? accRankIndex + 1 : null
+  const accTotal = accRanked.length
+  const hasAccData = accRank !== null && accRanked.length >= 3
+
   let flagImg = null
   try {
     flagImg = await loadImage(isoToTwemojiUrl(iso2))
@@ -550,31 +558,67 @@ async function generateShareCard(iso2) {
   ctx.lineTo(W - PAD, 730)
   ctx.stroke()
 
+  if (hasAccData) {
+    let rankText = ''
+    let rankColor = 'rgba(255,255,255,0.25)'
+
+    if (accRank === 1) {
+      rankText = `🏆 #1 most accurate nation on the map`
+      rankColor = '#FFD700'
+    } else if (accRank <= 3) {
+      rankText = `🥇 #${accRank} most accurate nation on the map`
+      rankColor = '#FFD700'
+    } else if (accRank <= 10) {
+      rankText = `#${accRank} most accurate nation on the map`
+      rankColor = 'rgba(255,255,255,0.7)'
+    } else {
+      rankText = `#${accRank} of ${accTotal} nations in accuracy`
+      rankColor = 'rgba(255,255,255,0.4)'
+    }
+
+    ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    const rankTextWidth = ctx.measureText(rankText).width
+    const badgePad = 40
+    const badgeW = rankTextWidth + badgePad * 2
+    const badgeH = 80
+    const badgeX = PAD
+    const badgeY = 760
+
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'
+    ctx.beginPath()
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 40)
+    ctx.fill()
+
+    ctx.fillStyle = rankColor
+    ctx.textAlign = 'left'
+    ctx.fillText(rankText, badgeX + badgePad, badgeY + 54)
+  }
+
   if (statBig) {
     ctx.fillStyle = '#fff'
     ctx.font = '800 340px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(statBig, W / 2, 1130)
+    ctx.fillText(statBig, W / 2, 1200)
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.font = '500 54px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W / 2, 1200, W - PAD * 2, 72)
+    wrapText(ctx, statSub, W / 2, 1280, W - PAD * 2, 72)
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)'
     ctx.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1420, W - PAD * 2, 64)
+    wrapText(ctx, globalLine, W / 2, 1500, W - PAD * 2, 64)
   } else {
     ctx.fillStyle = 'rgba(255,255,255,0.35)'
     ctx.font = '400 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W / 2, 900, W - PAD * 2, 80)
+    wrapText(ctx, statSub, W / 2, 1000, W - PAD * 2, 80)
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.font = '600 64px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1100, W - PAD * 2, 80)
+    wrapText(ctx, globalLine, W / 2, 1200, W - PAD * 2, 80)
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.2)'
