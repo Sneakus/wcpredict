@@ -271,7 +271,15 @@ function renderMatches() {
   }
   el.innerHTML = ''
   todayMatches.forEach(m => {
-    const time = new Date(m.kickoff_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+    const kickoff = new Date(m.kickoff_at)
+    const time = kickoff.toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
     el.innerHTML += `<div class="match-row">
       <span class="match-time">${time}</span>
       <span class="match-teams">${m.home_team} vs ${m.away_team}</span>
