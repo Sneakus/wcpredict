@@ -260,6 +260,7 @@ async function loadTodayMatches() {
   if (error) { console.error('loadTodayMatches error:', error); return }
   todayMatches = data || []
   renderMatches()
+  updatePickPromptVisibility()
 }
 
 function renderMatches() {
@@ -343,11 +344,12 @@ function scrollToPredict() {
   document.getElementById('tournament-pick-panel').scrollIntoView({ behavior: 'smooth' })
 }
 
-function updatePickPrompt() {
-  const el = document.getElementById('pick-prompt')
-  if (!el) return
-  // Only hide after successful submit in this session
-  // Don't hide just because tournament winner cookie exists
+function updatePickPromptVisibility() {
+  const hasWinnerCookie = !!getCookie('wcp_tournament_winner')
+  const hasUnlockedMatches = todayMatches.some(m => !m.locked)
+  if (hasWinnerCookie && !hasUnlockedMatches) {
+    hidePickPrompt()
+  }
 }
 
 function hidePickPrompt() {
