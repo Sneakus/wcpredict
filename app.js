@@ -475,10 +475,16 @@ async function generateShareCard(iso2) {
   const hasAccData = accRank !== null && accRanked.length >= 3
 
   let globalLine = ''
-  if (hasAccData && accRank <= 3) {
-    globalLine = `Can your nation knock ${nationDisplayName} off the top?`
-  } else if (hasAccData) {
-    globalLine = `${nationDisplayName} is climbing — can your nation keep up?`
+  if (hasAccData) {
+    if (accRank === 1) {
+      globalLine = `Think another nation can top us? 👀`
+    } else if (accRank <= 3) {
+      globalLine = `We're coming for #1. Can you stop us?`
+    } else if (accRank <= 10) {
+      globalLine = `We're in the hunt. Where does your nation rank?`
+    } else {
+      globalLine = `Think your nation knows better? Prove it.`
+    }
   } else {
     globalLine = `Think your nation knows better? Prove it.`
   }
