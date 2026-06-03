@@ -1053,58 +1053,56 @@ async function loadPersonalStats() {
     if (!el) return
     el.style.display = 'block'
 
-    let html = `<div id="personal-stats-top">`
-    html += `<div class="stat-item">
-      <span class="stat-label">Your predictions</span>
-      <span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span>
-    </div>`
-    html += `<div class="stat-item">
-      <span class="stat-label">Global ranking</span>
-      <span class="stat-value">Top ${100 - data.global_percentile}% worldwide</span>
-    </div>`
-    html += `<div class="stat-item">
-      <span class="stat-label">National ranking</span>
-      <span class="stat-value">Top ${100 - data.national_percentile}% in your country</span>
-    </div>`
+    let html = ''
+    html += `<div id="personal-stats-top">`
+    html += `<div class="stat-item"><span class="stat-label">Predictions</span><span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span></div>`
+    html += `<div class="stat-item"><span class="stat-label">Global</span><span class="stat-value">Top ${100 - data.global_percentile}%</span></div>`
+    html += `<div class="stat-item"><span class="stat-label">National</span><span class="stat-value">Top ${100 - data.national_percentile}%</span></div>`
     html += `</div>`
 
     if (data.history && data.history.length > 0) {
       html += `<div id="personal-history">`
-      html += `<div class="personal-history-title">Your picks by round</div>`
+      html += `<div class="personal-history-title">My World Cup Journey</div>`
 
       data.history.forEach(r => {
         const teamData = WC_TEAMS.find(t => t.name === r.tournamentPick)
         const teamColor = TEAM_COLORS[r.tournamentPick] || '#378ADD'
         const teamFlag = teamData ? teamData.flag : ''
-        const hasMatchPicks = r.matchPicks && r.matchPicks.length > 0
-        const accuracyStr = r.total > 0 ? `${r.correct}/${r.total} correct` : ''
+        const accuracyStr = r.total > 0 ? `${r.correct}/${r.total}` : null
 
         html += `<div class="history-round-block">`
+
         html += `<div class="history-round-header">`
         html += `<span class="history-round-label">${r.label}</span>`
-        if (r.tournamentPick) {
-          html += `<span class="history-wc-pick" style="color:${teamColor}">${teamFlag} ${r.tournamentPick}</span>`
-        }
-        if (accuracyStr) {
-          html += `<span class="history-round-accuracy">${accuracyStr}</span>`
-        }
+        if (accuracyStr) html += `<span class="history-round-accuracy">${accuracyStr} correct</span>`
         html += `</div>`
 
-        if (hasMatchPicks) {
-          html += `<div class="history-match-picks">`
+        if (r.tournamentPick) {
+          html += `<div class="history-champion-pick">
+            <span class="history-champion-label">My World Cup champion:</span>
+            <span class="history-champion-team" style="color:${teamColor}">${teamFlag} ${r.tournamentPick} 🏆</span>
+          </div>`
+        }
+
+        if (r.matchPicks && r.matchPicks.length > 0) {
+          html += `<div class="history-match-chips">`
           r.matchPicks.forEach(m => {
             const scored = m.score !== null
             const correct = m.score === 1
-            const icon = !scored ? '' : correct ? '✓' : '✗'
-            const iconClass = !scored ? '' : correct ? 'pick-correct' : 'pick-wrong'
-            html += `<div class="history-match-row">
-              <span class="history-match-teams">${m.home} vs ${m.away}</span>
-              <span class="history-match-pick">I backed: <strong>${m.pick}</strong></span>
-              ${scored ? `<span class="history-match-result ${iconClass}">${icon}</span>` : ''}
+            const chipClass = !scored ? 'chip-unscored' : correct ? 'chip-correct' : 'chip-wrong'
+            const homeActive = m.pick === m.home
+            const awayActive = m.pick === m.away
+            const drawActive = m.pick === 'Draw'
+
+            html += `<div class="match-chip ${chipClass}">
+              <span class="chip-team ${homeActive ? 'chip-team-picked' : ''}">${m.home}</span>
+              <span class="chip-vs ${drawActive ? 'chip-draw-picked' : ''}">vs</span>
+              <span class="chip-team ${awayActive ? 'chip-team-picked' : ''}">${m.away}</span>
             </div>`
           })
           html += `</div>`
         }
+
         html += `</div>`
       })
       html += `</div>`

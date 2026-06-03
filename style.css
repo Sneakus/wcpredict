@@ -190,8 +190,8 @@ body {
 }
 
 #personal-stats {
-  padding: 14px 16px;
-  background: rgba(255,255,255,0.03);
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.02);
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
 }
 
@@ -199,13 +199,15 @@ body {
   display: flex;
   gap: 24px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  margin-bottom: 14px;
 }
 
 #personal-history {
-  border-top: 0.5px solid rgba(255,255,255,0.08);
-  padding-top: 14px;
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .personal-history-title {
@@ -214,89 +216,107 @@ body {
   color: rgba(255,255,255,0.35);
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .history-round-block {
-  margin-bottom: 14px;
-  padding-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 16px;
   border-bottom: 0.5px solid rgba(255,255,255,0.06);
 }
 
 .history-round-block:last-child {
   border-bottom: none;
-  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .history-round-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .history-round-label {
   font-size: 11px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.4);
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  width: 110px;
-  flex-shrink: 0;
-}
-
-.history-wc-pick {
-  font-size: 12px;
-  font-weight: 600;
-  flex: 1;
+  letter-spacing: 0.5px;
 }
 
 .history-round-accuracy {
   font-size: 11px;
+  color: rgba(255,255,255,0.3);
+}
+
+.history-champion-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.history-champion-label {
   color: rgba(255,255,255,0.35);
+}
+
+.history-champion-team {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.history-match-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.match-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  border: 0.5px solid rgba(255,255,255,0.08);
+}
+
+.chip-unscored {
+  background: rgba(255,255,255,0.04);
+}
+
+.chip-correct {
+  background: rgba(76,175,80,0.15);
+  border-color: rgba(76,175,80,0.3);
+}
+
+.chip-wrong {
+  background: rgba(239,83,80,0.15);
+  border-color: rgba(239,83,80,0.3);
+}
+
+.chip-team {
+  color: rgba(255,255,255,0.4);
   white-space: nowrap;
 }
 
-.history-match-picks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 122px;
-}
-
-.history-match-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-}
-
-.history-match-teams {
-  color: rgba(255,255,255,0.35);
-  flex-shrink: 0;
-  min-width: 160px;
-}
-
-.history-match-pick {
-  flex: 1;
-  color: rgba(255,255,255,0.55);
-}
-
-.history-match-pick strong {
+.chip-team-picked {
   color: #fff;
-  font-weight: 600;
-}
-
-.history-match-result {
-  font-size: 12px;
   font-weight: 700;
-  flex-shrink: 0;
 }
 
-.pick-correct { color: #4CAF50; }
-.pick-wrong   { color: #EF5350; }
+.chip-vs {
+  color: rgba(255,255,255,0.2);
+  font-size: 10px;
+}
+
+.chip-draw-picked {
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+}
 
 .stat-item {
   display: flex;
@@ -833,21 +853,17 @@ body {
     font-size: 13px;
   }
 
-  #personal-stats-top {
-    gap: 12px;
+  #personal-stats {
+    padding: 14px;
   }
 
-  .history-match-picks {
-    padding-left: 0;
-    margin-top: 6px;
+  #personal-stats-top {
+    gap: 14px;
   }
-  .history-match-teams {
-    min-width: 0;
-    flex: 1;
-  }
-  .history-match-row {
-    flex-wrap: wrap;
-    gap: 4px;
+
+  .match-chip {
+    font-size: 10px;
+    padding: 4px 8px;
   }
 }
 
