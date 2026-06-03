@@ -333,6 +333,7 @@ async function submitPredictions() {
     updateMapColors()
     buildLeaderboards()
     hidePickPrompt()
+    setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
   } else {
     alert(result.error || 'Something went wrong')
     if (window.turnstile) turnstile.reset()
