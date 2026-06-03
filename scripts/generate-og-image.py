@@ -1,12 +1,8 @@
 """Generate og-image.png for social sharing previews.
 
 The live site map (app.js) colours countries by World Cup team picks using
-TEAM_COLORS. This script uses that same palette with a fixed per-country
-assignment stored in og-map-fills.json — decorative only, not tied to
-predictions.
-
-The committed og-image.png and og-map-fills.json are canonical. Re-running
-this script preserves the same country colours.
+TEAM_COLORS. Tournament nations use wc-team colours from apply-wc-team-colors.py;
+all other countries keep their frozen random fills in og-map-fills.json.
 """
 
 from __future__ import annotations
@@ -28,17 +24,6 @@ BG = "#0a0a0a"
 TEXT = "#ffffff"
 SUBTEXT = "#ffffff"
 
-TEAM_COLORS = [
-    "#639922",  # Brazil
-    "#185FA5",  # France
-    "#993C1D",  # England
-    "#D85A30",  # Spain
-    "#5DCAA5",  # Argentina
-    "#888780",  # Germany
-    "#A32D2D",  # Portugal
-    "#7F77DD",  # USA
-]
-
 
 def load_font(bold: bool, size: int):
     candidates = (
@@ -56,11 +41,7 @@ def load_font(bold: bool, size: int):
 
 def load_country_fills(script_dir: Path) -> list[str]:
     fills_path = script_dir / "og-map-fills.json"
-    fills = json.loads(fills_path.read_text(encoding="utf-8"))
-    for color in fills:
-        if color not in TEAM_COLORS:
-            raise SystemExit(f"Unknown team colour in og-map-fills.json: {color}")
-    return fills
+    return json.loads(fills_path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
