@@ -1,4 +1,4 @@
-# WCPredict — Pre-Launch Design Document
+# World Cup Map — Pre-Launch Design Document
 *Last updated: June 3, 2026 | Tournament starts: June 11, 2026 | Days remaining: 8*
 
 ---
@@ -6,7 +6,7 @@
 ## Current Status
 
 ### ✅ Done
-- Vercel project live at `wcpredict-zeta.vercel.app`
+- Vercel project live at `worldcupmap.io`
 - Supabase database with all 5 tables (nations, matches, predictions, match_results, moderation_flags)
 - 195 nations seeded with ISO2 codes and flag emojis
 - 48 group stage matches seeded with correct kickoff times
@@ -318,28 +318,28 @@ for each row execute function score_predictions();
 **Status:** Not implemented
 **Minimum viable (static):**
 ```html
-<meta property="og:title" content="WCPredict — Who does the world back?">
+<meta property="og:title" content="World Cup Map — Who does the world back?">
 <meta property="og:description" content="See how every nation is predicting the 2026 World Cup. Add your pick to the global map.">
-<meta property="og:image" content="https://wcpredict-zeta.vercel.app/og-image.png">
-<meta property="og:url" content="https://wcpredict-zeta.vercel.app">
+<meta property="og:image" content="https://worldcupmap.io/og-image.png">
+<meta property="og:url" content="https://worldcupmap.io">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://wcpredict-zeta.vercel.app/og-image.png">
+<meta name="twitter:image" content="https://worldcupmap.io/og-image.png">
 ```
-Create `og-image.png` (1200×630px) — screenshot of the map with "WCPredict" branding.
+Create `og-image.png` (1200×630px) — screenshot of the map with "World Cup Map" branding.
 
 **Dynamic (post-launch):** Satori + resvg in `/api/og` — week 2 if traction.
 
 ### 4.2 About Section
 **Status:** Not implemented
 Add a simple collapsible section below the submit button explaining:
-- What WCPredict is
+- What World Cup Map is
 - How the map colours work
 - How accuracy leaderboard is calculated
 - Privacy: no account needed, IP hashed and not stored
 
 ### 4.3 Domain
 **Status:** Not purchased. Target: June 8.
-- Buy `wcpredict.com` or `wcpredict.app` on Porkbun
+- Buy `worldcupmap.io` on Porkbun
 - Point nameservers to Cloudflare (free) — unlocks Turnstile + CF-IPCountry + DDoS protection
 - Add CNAME to Vercel, add custom domain in Vercel dashboard
 - SSL auto-provisions
@@ -350,7 +350,7 @@ Add a simple collapsible section below the submit button explaining:
 - r/soccer — "Built a live world map showing how every country predicts the World Cup"
 - r/worldcup, r/FIFAWC, r/CONCACAF
 - Drop link in r/soccer opening match thread
-- Twitter/X with map screenshot + hashtags: #WorldCup2026 #WCPredict
+- Twitter/X with map screenshot + hashtags: #WorldCup2026 #WorldCupMap
 - World Cup 2026 Discord servers
 
 ---

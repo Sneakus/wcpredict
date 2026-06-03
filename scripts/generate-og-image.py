@@ -97,7 +97,7 @@ def main() -> None:
     fig.text(
         TEXT_X,
         TITLE_Y,
-        "WCPredict",
+        "World Cup Map",
         color=TEXT,
         fontproperties=title_font,
         ha="left",
