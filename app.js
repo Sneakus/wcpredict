@@ -430,9 +430,6 @@ async function generateShareCard(iso2) {
   const isSelfPick = tournamentWinner === nd.name
   const hasEnoughData = totalVotes >= 3
 
-  const countriesBackingSameTeam = Object.values(nationData)
-    .filter(n => n.pick === tournamentWinner).length
-
   const nationDisplayName = nd.name || iso2
   const teamData = WC_TEAMS.find(t => t.name === tournamentWinner)
   const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
@@ -469,15 +466,6 @@ async function generateShareCard(iso2) {
       : `Add your pick to the map`
   }
 
-  let globalLine = ''
-  if (countriesBackingSameTeam === 1) {
-    globalLine = `The only country backing ${tournamentWinner}`
-  } else if (countriesBackingSameTeam <= 4) {
-    globalLine = `1 of only ${countriesBackingSameTeam} nations backing ${tournamentWinner}`
-  } else {
-    globalLine = `${countriesBackingSameTeam} nations are backing ${tournamentWinner}`
-  }
-
   const accRanked = Object.values(nationData)
     .filter(d => d.acc !== null)
     .sort((a, b) => b.acc - a.acc)
@@ -485,6 +473,15 @@ async function generateShareCard(iso2) {
   const accRank = accRankIndex >= 0 ? accRankIndex + 1 : null
   const accTotal = accRanked.length
   const hasAccData = accRank !== null && accRanked.length >= 3
+
+  let globalLine = ''
+  if (hasAccData && accRank <= 3) {
+    globalLine = `Can your nation knock ${nationDisplayName} off the top?`
+  } else if (hasAccData) {
+    globalLine = `${nationDisplayName} is climbing — can your nation keep up?`
+  } else {
+    globalLine = `Think your nation knows better? Prove it.`
+  }
 
   let flagImg = null
   try {
@@ -563,11 +560,14 @@ async function generateShareCard(iso2) {
     let rankColor = 'rgba(255,255,255,0.25)'
 
     if (accRank === 1) {
-      rankText = `🏆 #1 most accurate nation on the map`
+      rankText = `🥇 #1 most accurate nation on the map`
       rankColor = '#FFD700'
-    } else if (accRank <= 3) {
-      rankText = `🥇 #${accRank} most accurate nation on the map`
-      rankColor = '#FFD700'
+    } else if (accRank === 2) {
+      rankText = `🥈 #2 most accurate nation on the map`
+      rankColor = '#C0C0C0'
+    } else if (accRank === 3) {
+      rankText = `🥉 #3 most accurate nation on the map`
+      rankColor = '#CD7F32'
     } else if (accRank <= 10) {
       rankText = `#${accRank} most accurate nation on the map`
       rankColor = 'rgba(255,255,255,0.7)'
@@ -605,20 +605,20 @@ async function generateShareCard(iso2) {
     ctx.textAlign = 'center'
     wrapText(ctx, statSub, W / 2, 1280, W - PAD * 2, 72)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'
-    ctx.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '500 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1500, W - PAD * 2, 64)
+    wrapText(ctx, globalLine, W / 2, 1530, W - PAD * 2, 68)
   } else {
     ctx.fillStyle = 'rgba(255,255,255,0.35)'
     ctx.font = '400 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
     wrapText(ctx, statSub, W / 2, 1000, W - PAD * 2, 80)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '600 64px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.font = '600 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1200, W - PAD * 2, 80)
+    wrapText(ctx, globalLine, W / 2, 1200, W - PAD * 2, 76)
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.2)'
