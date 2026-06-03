@@ -73,6 +73,15 @@ body {
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
 }
 
+#map {
+  width: 100%;
+  position: relative;
+}
+
+#legend {
+  display: none;
+}
+
 #map svg {
   display: block;
   width: 100%;

@@ -580,7 +580,13 @@ function switchView(view, btn) {
 
 function buildMap() {
   const container = document.getElementById('map')
-  const width = container.offsetWidth || 800
+  if (!container) return
+  container.innerHTML = ''
+  const width = container.offsetWidth || container.parentElement?.offsetWidth || 800
+  if (!width) {
+    requestAnimationFrame(buildMap)
+    return
+  }
   const height = Math.round(width * 0.52)
   const svg = d3.select('#map').append('svg')
     .attr('viewBox', `0 0 ${width} ${height}`)
