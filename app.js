@@ -331,7 +331,7 @@ async function submitPredictions() {
     await loadNationData()
     updateMapColors()
     buildLeaderboards()
-    updatePickPrompt()
+    hidePickPrompt()
   } else {
     alert(result.error || 'Something went wrong')
     if (window.turnstile) turnstile.reset()
@@ -346,9 +346,13 @@ function scrollToPredict() {
 function updatePickPrompt() {
   const el = document.getElementById('pick-prompt')
   if (!el) return
-  if (getCookie('wcp_tournament_winner')) {
-    el.style.display = 'none'
-  }
+  // Only hide after successful submit in this session
+  // Don't hide just because tournament winner cookie exists
+}
+
+function hidePickPrompt() {
+  const el = document.getElementById('pick-prompt')
+  if (el) el.style.display = 'none'
 }
 
 function buildLeaderboards() {
@@ -698,7 +702,6 @@ async function init() {
   buildLeaderboards()
   buildMap()
   loadPersonalStats()
-  updatePickPrompt()
 }
 
 init()

@@ -136,7 +136,7 @@ body {
 
 #pick-prompt {
   position: absolute;
-  bottom: 60px;
+  bottom: 120px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -500,7 +500,7 @@ body {
   }
 
   #pick-prompt {
-    bottom: 40px;
+    bottom: 80px;
     padding: 8px 12px;
     gap: 8px;
   }
