@@ -39,12 +39,54 @@ export default async function handler(req, res) {
     p_nation_iso2: nation_iso2
   })
 
+  const { data: roundHistory } = await supabase
+    .from('predictions')
+    .select('round, tournament_winner, match_id, predicted_winner, score')
+    .eq('fingerprint_hash', fingerprintHash)
+    .order('created_at', { ascending: true })
+
+  const rounds = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'final']
+  const roundLabels = {
+    group_stage:   'Group Stage',
+    round_of_32:   'Round of 32',
+    round_of_16:   'Round of 16',
+    quarter_final: 'Quarter-Finals',
+    semi_final:    'Semi-Finals',
+    final:         'Final',
+  }
+
+  const history = {}
+  if (roundHistory) {
+    roundHistory.forEach(row => {
+      const r = row.round || 'group_stage'
+      if (!history[r]) history[r] = { tournamentPick: null, correct: 0, total: 0 }
+      if (row.tournament_winner) history[r].tournamentPick = row.tournament_winner
+      if (row.match_id) {
+        if (row.score !== null) {
+          history[r].total++
+          if (row.score === 1) history[r].correct++
+        }
+      }
+    })
+  }
+
+  const historyFormatted = rounds
+    .filter(r => history[r])
+    .map(r => ({
+      round: r,
+      label: roundLabels[r],
+      tournamentPick: history[r].tournamentPick,
+      correct: history[r].correct,
+      total: history[r].total,
+    }))
+
   return res.status(200).json({
     correct,
     total,
     accuracy: Math.round(myAccuracy * 100),
     global_percentile: globalStats,
     national_percentile: nationalStats,
-    nation_iso2
+    nation_iso2,
+    history: historyFormatted,
   })
 }

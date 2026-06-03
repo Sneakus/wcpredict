@@ -1051,21 +1051,42 @@ async function loadPersonalStats() {
 
     const el = document.getElementById('personal-stats')
     if (!el) return
-    el.style.display = 'flex'
-    el.innerHTML = `
-      <div class="stat-item">
-        <span class="stat-label">Your predictions</span>
-        <span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Global ranking</span>
-        <span class="stat-value">Top ${100 - data.global_percentile}% worldwide</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">National ranking</span>
-        <span class="stat-value">Top ${100 - data.national_percentile}% in your country</span>
-      </div>
-    `
+    el.style.display = 'block'
+
+    let html = `<div id="personal-stats-top">`
+    html += `<div class="stat-item">
+      <span class="stat-label">Your predictions</span>
+      <span class="stat-value">${data.correct}/${data.total} correct (${data.accuracy}%)</span>
+    </div>`
+    html += `<div class="stat-item">
+      <span class="stat-label">Global ranking</span>
+      <span class="stat-value">Top ${100 - data.global_percentile}% worldwide</span>
+    </div>`
+    html += `<div class="stat-item">
+      <span class="stat-label">National ranking</span>
+      <span class="stat-value">Top ${100 - data.national_percentile}% in your country</span>
+    </div>`
+    html += `</div>`
+
+    if (data.history && data.history.length > 0) {
+      html += `<div id="personal-history">`
+      html += `<div class="personal-history-title">Your picks by round</div>`
+      html += `<div class="personal-history-rows">`
+      data.history.forEach(r => {
+        const teamData = WC_TEAMS.find(t => t.name === r.tournamentPick)
+        const teamColor = TEAM_COLORS[r.tournamentPick] || '#378ADD'
+        const flag = teamData ? teamData.flag : ''
+        const accuracyStr = r.total > 0 ? `${r.correct}/${r.total} correct` : 'No match picks'
+        html += `<div class="history-row">
+          <div class="history-round">${r.label}</div>
+          <div class="history-pick" style="color:${teamColor}">${flag} ${r.tournamentPick || '—'}</div>
+          <div class="history-accuracy">${accuracyStr}</div>
+        </div>`
+      })
+      html += `</div></div>`
+    }
+
+    el.innerHTML = html
   } catch (e) {
     console.warn('Personal stats unavailable:', e)
   }

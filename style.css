@@ -190,13 +190,67 @@ body {
 }
 
 #personal-stats {
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+}
+
+#personal-stats-top {
   display: flex;
   gap: 24px;
-  padding: 12px 16px;
-  background: rgba(255,255,255,0.04);
-  border-bottom: 0.5px solid rgba(255,255,255,0.08);
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
+
+#personal-history {
+  border-top: 0.5px solid rgba(255,255,255,0.08);
+  padding-top: 12px;
+}
+
+.personal-history-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+
+.personal-history-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  padding: 5px 0;
+  border-bottom: 0.5px solid rgba(255,255,255,0.05);
+}
+
+.history-row:last-child { border-bottom: none; }
+
+.history-round {
+  color: rgba(255,255,255,0.35);
+  width: 120px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.history-pick {
+  font-weight: 600;
+  flex: 1;
+}
+
+.history-accuracy {
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .stat-item {
   display: flex;
   flex-direction: column;
@@ -730,6 +784,14 @@ body {
 
   #about-section .about-item p {
     font-size: 13px;
+  }
+
+  #personal-stats-top {
+    gap: 12px;
+  }
+  .history-round {
+    width: 90px;
+    font-size: 10px;
   }
 }
 
