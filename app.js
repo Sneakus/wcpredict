@@ -145,6 +145,9 @@ let nations = []
 let tournamentWinner = null
 let visitorFingerprint = null
 let currentRound = 'group_stage'
+let mapProjection = null
+let pulseLayer = null
+let lastPulseTimestamp = null
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -407,6 +410,8 @@ async function submitPredictions() {
     updateMapColors()
     buildLeaderboards()
     generateShareCard(iso2)
+    const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
+    if (userTeam) firePulse(iso2, userTeam)
     hidePickPrompt()
     setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
   } else {
@@ -974,6 +979,97 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
+function firePulse(iso2, teamName) {
+  if (!mapProjection || !pulseLayer) return
+  const city = getPulseCity(iso2)
+  if (!city) return
+
+  const color = TEAM_COLORS[teamName] || 'rgba(255,255,255,0.6)'
+  const [x, y] = mapProjection([city.lng, city.lat])
+  if (!x || !y) return
+
+  const g = pulseLayer.append('g')
+
+  g.append('circle')
+    .attr('cx', x).attr('cy', y).attr('r', 2.5)
+    .attr('fill', color)
+    .attr('opacity', 0.9)
+    .transition().duration(1800)
+    .attr('opacity', 0)
+    .remove()
+
+  g.append('circle')
+    .attr('cx', x).attr('cy', y).attr('r', 3)
+    .attr('fill', 'none')
+    .attr('stroke', color)
+    .attr('stroke-width', 1.5)
+    .attr('opacity', 0.8)
+    .transition().duration(1800).ease(d3.easeCubicOut)
+    .attr('r', 18)
+    .attr('opacity', 0)
+    .remove()
+
+  g.append('circle')
+    .attr('cx', x).attr('cy', y).attr('r', 3)
+    .attr('fill', 'none')
+    .attr('stroke', color)
+    .attr('stroke-width', 0.8)
+    .attr('opacity', 0.4)
+    .transition().duration(2600).ease(d3.easeCubicOut)
+    .attr('r', 28)
+    .attr('opacity', 0)
+    .on('end', () => g.remove())
+}
+
+async function loadRecentPulses() {
+  try {
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { data, error } = await sb
+      .from('predictions')
+      .select('nation_iso2, tournament_winner, created_at')
+      .gte('created_at', since)
+      .order('created_at', { ascending: true })
+      .limit(40)
+    if (error || !data) return
+
+    if (data.length > 0) {
+      lastPulseTimestamp = data[data.length - 1].created_at
+    }
+
+    data.forEach((row, i) => {
+      const nd = nationData[row.nation_iso2]
+      const teamName = row.tournament_winner || (nd && nd.pick) || null
+      if (!teamName) return
+      setTimeout(() => firePulse(row.nation_iso2, teamName), i * (4000 / Math.max(data.length, 1)))
+    })
+  } catch (e) {
+    console.warn('loadRecentPulses failed:', e)
+  }
+}
+
+async function pollNewPulses() {
+  if (!lastPulseTimestamp) return
+  try {
+    const { data, error } = await sb
+      .from('predictions')
+      .select('nation_iso2, tournament_winner, created_at')
+      .gt('created_at', lastPulseTimestamp)
+      .order('created_at', { ascending: true })
+      .limit(10)
+    if (error || !data || data.length === 0) return
+
+    lastPulseTimestamp = data[data.length - 1].created_at
+    data.forEach((row, i) => {
+      const nd = nationData[row.nation_iso2]
+      const teamName = row.tournament_winner || (nd && nd.pick) || null
+      if (!teamName) return
+      setTimeout(() => firePulse(row.nation_iso2, teamName), i * 300)
+    })
+  } catch (e) {
+    console.warn('pollNewPulses failed:', e)
+  }
+}
+
 function buildMap() {
   const container = document.getElementById('map')
   if (!container) return
@@ -1013,6 +1109,8 @@ function buildMap() {
   controls.append('button').attr('id','zoom-out').text('−').on('click', () => svg.transition().duration(300).call(zoom.scaleBy, 0.67))
 
   const g = svg.append('g')
+  mapProjection = projection
+  pulseLayer = svg.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
 
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
@@ -1183,6 +1281,10 @@ async function init() {
   buildLeaderboards()
   buildMap()
   loadPersonalStats()
+  setTimeout(async () => {
+    await loadRecentPulses()
+    setInterval(pollNewPulses, 60000)
+  }, 2000)
 }
 
 init()
