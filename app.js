@@ -298,18 +298,28 @@ async function loadPredictionCount() {
 }
 
 async function loadNationData() {
-  const { data, error } = await sb
-    .from('predictions')
-    .select('nation_iso2, tournament_winner, match_id, predicted_winner, score')
-  if (error) { console.error('loadNationData error:', error); return }
-  if (!data) return
+  const pageSize = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await sb
+      .from('predictions')
+      .select('nation_iso2, match_id, predicted_winner, score')
+      .range(from, from + pageSize - 1)
+    if (error) { console.error('loadNationData error:', error); return }
+    if (!data || data.length === 0) break
+    allData = allData.concat(data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  const data = allData
   const byNation = {}
   data.forEach(row => {
     const iso = row.nation_iso2
     if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, correct: 0, total: 0 }
-    if (row.tournament_winner) {
-      byNation[iso].tournamentPicks[row.tournament_winner] =
-        (byNation[iso].tournamentPicks[row.tournament_winner] || 0) + 1
+    if (row.predicted_winner && !row.match_id) {
+      byNation[iso].tournamentPicks[row.predicted_winner] =
+        (byNation[iso].tournamentPicks[row.predicted_winner] || 0) + 1
     }
     if (row.match_id) {
       if (!byNation[iso].matchPicks[row.match_id]) byNation[iso].matchPicks[row.match_id] = {}
