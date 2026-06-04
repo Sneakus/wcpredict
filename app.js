@@ -146,11 +146,16 @@ let tournamentWinner = null
 let visitorFingerprint = null
 let currentRound = 'group_stage'
 let mapProjection = null
-let dotCanvas = null
-let dotCtx = null
-let dotSprites = {}
-let dotPoints = []
+let glCanvas = null
+let gl = null
+let glProgram = null
+let glBuffer = null
+let glColorBuffer = null
+let glPointCount = 0
+let glWidth = 0
+let glHeight = 0
 let currentZoomTransform = { x: 0, y: 0, k: 1 }
+let dotPoints = [] // stores {lng, lat, r, g, b} for redraw
 let lastPulseTimestamp = null
 const picks = {}
 
@@ -988,89 +993,159 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
-function redrawDots(transform) {
-  if (!dotCtx || !dotCanvas) return
-  dotCtx.clearRect(0, 0, dotCanvas.width, dotCanvas.height)
-  dotCtx.globalCompositeOperation = 'lighter'
-  let seed = 1
-  function seededRand() {
-    seed = (seed * 16807) % 2147483647
-    return (seed - 1) / 2147483646
-  }
-  dotPoints.forEach(p => {
-    const projected = mapProjection([p.lng, p.lat])
-    if (!projected) return
-    const [mx, my] = projected
-    const sx = Math.round(transform.x + mx * transform.k + (seededRand() - 0.5) * 4)
-    const sy = Math.round(transform.y + my * transform.k + (seededRand() - 0.5) * 4)
-    const spriteSize = 4
-    if (dotSprites[p.color]) {
-      dotCtx.drawImage(dotSprites[p.color], sx - spriteSize/2, sy - spriteSize/2)
+function initWebGL(width, height) {
+  const canvas = document.getElementById('dot-canvas')
+  if (!canvas) return
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  canvas.width = width * dpr
+  canvas.height = height * dpr
+  canvas.style.width = width + 'px'
+  canvas.style.height = height + 'px'
+  glWidth = width
+  glHeight = height
+
+  gl = canvas.getContext('webgl', { premultipliedAlpha: false, alpha: true })
+  if (!gl) { console.warn('WebGL not supported, falling back'); return }
+
+  // Vertex shader — applies D3 zoom transform, outputs position
+  const vertSrc = `
+    attribute vec2 aPos;
+    attribute vec3 aCol;
+    uniform float uTx, uTy, uK;
+    uniform float uW, uH;
+    uniform float uDpr;
+    varying vec3 vCol;
+    void main() {
+      // apply zoom transform in CSS pixel space
+      float sx = aPos.x * uK + uTx;
+      float sy = aPos.y * uK + uTy;
+      // convert to clip space (account for DPR)
+      float cx = (sx * uDpr / (uW * uDpr)) * 2.0 - 1.0;
+      float cy = 1.0 - (sy * uDpr / (uH * uDpr)) * 2.0;
+      gl_Position = vec4(cx, cy, 0.0, 1.0);
+      gl_PointSize = 2.5 * uDpr;
+      vCol = aCol;
     }
-  })
+  `
+
+  // Fragment shader — soft radial glow using gl_PointCoord
+  const fragSrc = `
+    precision mediump float;
+    varying vec3 vCol;
+    void main() {
+      float d = length(gl_PointCoord - vec2(0.5)) * 2.0;
+      float a = 1.0 - smoothstep(0.0, 1.0, d);
+      a = pow(a, 1.8);
+      gl_FragColor = vec4(vCol * a, a * 0.35);
+    }
+  `
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type)
+    gl.shaderSource(s, src)
+    gl.compileShader(s)
+    return s
+  }
+
+  glProgram = gl.createProgram()
+  gl.attachShader(glProgram, compileShader(gl.VERTEX_SHADER, vertSrc))
+  gl.attachShader(glProgram, compileShader(gl.FRAGMENT_SHADER, fragSrc))
+  gl.linkProgram(glProgram)
+  gl.useProgram(glProgram)
+
+  glBuffer = gl.createBuffer()
+  glColorBuffer = gl.createBuffer()
+
+  gl.enable(gl.BLEND)
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE) // additive blending — the glow effect
+  gl.viewport(0, 0, canvas.width, canvas.height)
 }
 
-function drawDotAtLatLng(lng, lat, color) {
-  if (!dotCtx || !mapProjection) return
-  const projected = mapProjection([lng, lat])
-  if (!projected) return
-  const [mx, my] = projected
+function uploadDotBuffers() {
+  if (!gl || !glBuffer || dotPoints.length === 0) return
+  const positions = new Float32Array(dotPoints.length * 2)
+  const colors = new Float32Array(dotPoints.length * 3)
+  dotPoints.forEach((p, i) => {
+    const proj = mapProjection([p.lng, p.lat])
+    if (!proj) return
+    positions[i * 2]     = proj[0]
+    positions[i * 2 + 1] = proj[1]
+    colors[i * 3]     = p.r
+    colors[i * 3 + 1] = p.g
+    colors[i * 3 + 2] = p.b
+  })
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, glColorBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW)
+  glPointCount = dotPoints.length
+}
+
+function redrawDots() {
+  if (!gl || !glProgram || glPointCount === 0) return
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  gl.clear(gl.COLOR_BUFFER_BIT)
+
+  gl.useProgram(glProgram)
+
+  // Bind position buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffer)
+  const aPosLoc = gl.getAttribLocation(glProgram, 'aPos')
+  gl.enableVertexAttribArray(aPosLoc)
+  gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, false, 0, 0)
+
+  // Bind color buffer
+  gl.bindBuffer(gl.ARRAY_BUFFER, glColorBuffer)
+  const aColLoc = gl.getAttribLocation(glProgram, 'aCol')
+  gl.enableVertexAttribArray(aColLoc)
+  gl.vertexAttribPointer(aColLoc, 3, gl.FLOAT, false, 0, 0)
+
+  // Set uniforms
   const t = currentZoomTransform
-  const sx = Math.round(t.x + mx * t.k + (Math.random() - 0.5) * 4)
-  const sy = Math.round(t.y + my * t.k + (Math.random() - 0.5) * 4)
-  const spriteSize = 4
-  if (dotSprites[color]) {
-    dotCtx.drawImage(dotSprites[color], sx - spriteSize/2, sy - spriteSize/2)
-  }
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uTx'), t.x)
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uTy'), t.y)
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uK'),  t.k)
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uW'),  glWidth)
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uH'),  glHeight)
+  gl.uniform1f(gl.getUniformLocation(glProgram, 'uDpr'), dpr)
+
+  gl.drawArrays(gl.POINTS, 0, glPointCount)
+}
+
+function hexToRgb01(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255
+  const g = parseInt(hex.slice(3,5),16)/255
+  const b = parseInt(hex.slice(5,7),16)/255
+  return [r, g, b]
 }
 
 function firePulse(iso2, teamName, attempt = 0) {
-  if (!mapProjection || !dotCtx) {
+  if (!mapProjection) {
     if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
     return
   }
   const city = getPulseCity(iso2)
   if (!city) return
-
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
-  dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
-
-  const spriteSize = 4
-  if (!dotSprites[rawColor]) {
-    const half = spriteSize / 2
-    const offscreen = document.createElement('canvas')
-    offscreen.width = spriteSize
-    offscreen.height = spriteSize
-    const ctx = offscreen.getContext('2d')
-    const r = parseInt(rawColor.slice(1,3),16)
-    const g = parseInt(rawColor.slice(3,5),16)
-    const b = parseInt(rawColor.slice(5,7),16)
-    const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,    `rgba(255,255,255,0.65)`)
-    grad.addColorStop(0.2,  `rgba(${r},${g},${b},0.35)`)
-    grad.addColorStop(0.6,  `rgba(${r},${g},${b},0.12)`)
-    grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, spriteSize, spriteSize)
-    dotSprites[rawColor] = offscreen
-  }
-
-  drawDotAtLatLng(city.lng, city.lat, rawColor)
+  const [r, g, b] = hexToRgb01(rawColor)
+  dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
 async function loadRecentPulses() {
+  if (!mapProjection) {
+    setTimeout(loadRecentPulses, 500)
+    return
+  }
   try {
     let allData = []
     let from = 0
     const pageSize = 1000
-
     while (true) {
       const { data, error } = await sb
         .from('predictions')
         .select('nation_iso2, tournament_winner, created_at')
         .order('created_at', { ascending: true })
         .range(from, from + pageSize - 1)
-
       if (error || !data || data.length === 0) break
       allData = allData.concat(data)
       if (data.length < pageSize) break
@@ -1081,14 +1156,19 @@ async function loadRecentPulses() {
       lastPulseTimestamp = allData[allData.length - 1].created_at
     }
 
+    // Build all dot points
     allData.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      firePulse(row.nation_iso2, teamName)
+      // Draw 2 dots per prediction for density
       firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
     })
+
+    // Upload to GPU and render
+    uploadDotBuffers()
+    redrawDots()
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
   }
@@ -1102,16 +1182,18 @@ async function pollNewPulses() {
       .select('nation_iso2, tournament_winner, created_at')
       .gt('created_at', lastPulseTimestamp)
       .order('created_at', { ascending: true })
-      .limit(10)
+      .limit(20)
     if (error || !data || data.length === 0) return
-
     lastPulseTimestamp = data[data.length - 1].created_at
-    data.forEach((row, i) => {
+    data.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      setTimeout(() => firePulse(row.nation_iso2, teamName), i * 300)
+      firePulse(row.nation_iso2, teamName)
+      firePulse(row.nation_iso2, teamName)
     })
+    uploadDotBuffers()
+    redrawDots()
   } catch (e) {
     console.warn('pollNewPulses failed:', e)
   }
@@ -1135,14 +1217,9 @@ function buildMap() {
     .scale(width / 6.3)
     .translate([width / 2, height / 2.1])
   const path = d3.geoPath(projection)
-
-  const canvas = document.getElementById('dot-canvas')
-  canvas.width = width
-  canvas.height = height
-  canvas.style.width = '100%'
-  dotCanvas = canvas
-  dotCtx = canvas.getContext('2d')
-  dotCtx.globalCompositeOperation = 'lighter'
+  mapProjection = projection
+  // Init WebGL dot canvas
+  initWebGL(width, height)
 
   const mapWrap = document.getElementById('map-wrap')
   const tooltip = document.getElementById('tooltip')
@@ -1155,7 +1232,7 @@ function buildMap() {
       svg.style('cursor', event.transform.k > 1 ? 'grabbing' : 'grab')
       tooltip.style.display = 'none'
       currentZoomTransform = event.transform
-      redrawDots(event.transform)
+      redrawDots()
     })
   svg.call(zoom)
   svg.on('dblclick.zoom', null)
@@ -1167,7 +1244,6 @@ function buildMap() {
   controls.append('button').attr('id','zoom-out').text('−').on('click', () => svg.transition().duration(300).call(zoom.scaleBy, 0.67))
 
   const g = svg.append('g')
-  mapProjection = projection
 
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
@@ -1341,7 +1417,7 @@ async function init() {
   setTimeout(async () => {
     await loadRecentPulses()
     setInterval(pollNewPulses, 60000)
-  }, 2000)
+  }, 2500)
 }
 
 init()
