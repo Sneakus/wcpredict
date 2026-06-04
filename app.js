@@ -1074,6 +1074,9 @@ async function loadRecentPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
+      // Draw 3 dots per prediction to simulate density at lower vote counts
+      firePulse(row.nation_iso2, teamName)
+      firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
     })
   } catch (e) {
