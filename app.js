@@ -1198,7 +1198,7 @@ function initWebGL(width, height) {
       float cx = (sx * uDpr / (uW * uDpr)) * 2.0 - 1.0;
       float cy = 1.0 - (sy * uDpr / (uH * uDpr)) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = 2.5;
+      gl_PointSize = 4.0;
       vCol = aCol;
       float phase = aPos.x / uW * 25.13274;
       float t = sin(uTime * 1.5 - phase);
