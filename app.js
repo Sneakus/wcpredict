@@ -1143,16 +1143,18 @@ async function loadRecentPulses() {
     let allData = []
     let from = 0
     const pageSize = 1000
+    const maxRows = 20000
     while (true) {
       const { data, error } = await sb
         .from('predictions')
-        .select('nation_iso2, tournament_winner, created_at')
+        .select('nation_iso2, predicted_winner, created_at')
         .order('created_at', { ascending: true })
         .range(from, from + pageSize - 1)
       if (error || !data || data.length === 0) break
       allData = allData.concat(data)
       if (data.length < pageSize) break
       from += pageSize
+      if (from >= maxRows) break
     }
 
     if (allData.length > 0) {
@@ -1162,7 +1164,7 @@ async function loadRecentPulses() {
     // Build all dot points
     allData.forEach(row => {
       const nd = nationData[row.nation_iso2]
-      const teamName = row.tournament_winner || (nd && nd.pick) || null
+      const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
       // Draw 4 dots per prediction for density
       for (let d = 0; d < 4; d++) {
@@ -1183,7 +1185,7 @@ async function pollNewPulses() {
   try {
     const { data, error } = await sb
       .from('predictions')
-      .select('nation_iso2, tournament_winner, created_at')
+      .select('nation_iso2, predicted_winner, created_at')
       .gt('created_at', lastPulseTimestamp)
       .order('created_at', { ascending: true })
       .limit(20)
@@ -1191,7 +1193,7 @@ async function pollNewPulses() {
     lastPulseTimestamp = data[data.length - 1].created_at
     data.forEach(row => {
       const nd = nationData[row.nation_iso2]
-      const teamName = row.tournament_winner || (nd && nd.pick) || null
+      const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
       for (let d = 0; d < 4; d++) {
         firePulse(row.nation_iso2, teamName)
