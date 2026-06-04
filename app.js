@@ -1040,11 +1040,11 @@ function initWebGL(width, height) {
       gl_Position = vec4(cx, cy, 0.0, 1.0);
       gl_PointSize = 4.0;
       vCol = aCol;
-      float bandW = uW * 0.035;
-      float waveX = fract(uTime * 0.08) * (uW + bandW * 2.0) - bandW;
-      float dist = abs(aPos.x - waveX);
-      float pulse = 1.0 - smoothstep(0.0, bandW, dist);
-      vAlpha = 0.02 + pulse * 0.68;
+      float normX = aPos.x / uW;
+      float wavePos = fract(uTime * 0.07);
+      float dist = abs(normX - wavePos);
+      float pulse = 1.0 - smoothstep(0.0, 0.04, dist);
+      vAlpha = 0.5 + pulse * 0.25;
     }
   `
 
