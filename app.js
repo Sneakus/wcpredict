@@ -433,7 +433,6 @@ async function submitPredictions() {
     if (userTeam) setTimeout(() => {
       for (let d = 0; d < 25; d++) firePulse(iso2, userTeam)
       uploadDotBuffers()
-      redrawDots()
     }, 500)
     hidePickPrompt()
     setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
@@ -1028,7 +1027,9 @@ function initWebGL(width, height) {
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
     uniform float uDpr;
+    uniform float uTime;
     varying vec3 vCol;
+    varying float vAlpha;
     void main() {
       // apply zoom transform in CSS pixel space
       float sx = aPos.x * uK + uTx;
@@ -1039,6 +1040,9 @@ function initWebGL(width, height) {
       gl_Position = vec4(cx, cy, 0.0, 1.0);
       gl_PointSize = 4.0;
       vCol = aCol;
+      float phase = aPos.x / uW * 6.28318;
+      float pulse = sin(uTime * 0.8 + phase * 3.0) * 0.5 + 0.5;
+      vAlpha = 0.15 + pulse * 0.85;
     }
   `
 
@@ -1046,9 +1050,10 @@ function initWebGL(width, height) {
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
+    varying float vAlpha;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * 0.5;
+      float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1121,6 +1126,8 @@ function redrawDots() {
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uW'),  glWidth)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uH'),  glHeight)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uDpr'), dpr)
+  const uTime = gl.getUniformLocation(glProgram, 'uTime')
+  gl.uniform1f(uTime, performance.now() / 1000)
 
   gl.drawArrays(gl.POINTS, 0, glPointCount)
 }
@@ -1181,7 +1188,13 @@ async function loadRecentPulses() {
 
     // Upload to GPU and render
     uploadDotBuffers()
-    redrawDots()
+    if (!window._dotAnimFrame) {
+      function animateDots() {
+        redrawDots()
+        window._dotAnimFrame = requestAnimationFrame(animateDots)
+      }
+      animateDots()
+    }
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
   }
@@ -1207,7 +1220,6 @@ async function pollNewPulses() {
       }
     })
     uploadDotBuffers()
-    redrawDots()
   } catch (e) {
     console.warn('pollNewPulses failed:', e)
   }
