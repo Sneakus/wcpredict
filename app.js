@@ -1148,7 +1148,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const [r, g, b] = [0.47, 0.18, 0.72]
+  const [r, g, b] = [1.0, 1.0, 1.0]
   dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
