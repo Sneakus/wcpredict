@@ -49,19 +49,21 @@
 - Privacy-first: no accounts, no ads, IP hashed, no raw personal data stored
 - Post-submit share card modal — 1080×1920 canvas, personal framing, Twemoji flags, Web Share API
 
-### ❌ Not built (prioritised post-launch roadmap in Section 8)
-- Accuracy rank on share card — next immediate task
-- Matchday prediction share card variant
-- Storyline engine — auto-detects shareable narratives after each matchday
-- Nation vs nation rivalry cards
-- Real-world tournament results integration (team eliminated = map update trigger)
-- Round-based tournament winner tracker (Section 6)
-- "How the world changed its mind" round replay animation
-- Personal accuracy share card (Wrapped-style, end of tournament)
+### ❌ Not built (post-launch roadmap — see Post-Launch Feature Roadmap section)
+- "I told you so" contrarian share card — Priority 1, Week 1
+- Per-match crowd % on hover/tap in personal stats — Priority 2, Week 1
+- Matchday prediction share card variant — Priority 4, Week 1
+- Storyline engine — Phase 1 manual from matchday 1, Phase 2 automated from matchday 3
+- Nation vs nation rivalry card — R32, June 28
+- Real-world tournament results integration (elimination triggers) — QF, July 11
+- "How the world changed its mind" round replay animation — R32, June 28
+- Leaderboard movement arrows — Week 1
+- Personal accuracy share card (Wrapped-style, end of tournament) — SF/Final
+- End-of-tournament map archive
 - Admin result entry UI (use Supabase SQL editor for now)
 - AI moderation pipeline (moderation_flags table exists, Edge Function not built)
 - Dynamic OG image via @vercel/og (Satori)
-- Auto-refresh on matchdays (currently manual refresh only)
+- Auto-refresh on matchdays (5-min polling, Week 1 if traction warrants)
 - AdSense (deliberately deferred — see Section 4.4)
 
 ---
@@ -408,17 +410,28 @@ update rounds set is_current = true where round = 'round_of_32';
 
 ## Section 8 — Personal Stats
 
-### 8.1 Implementation
+### 8.1 Personal Stats Panel
 **Status:** ✅ Built — /api/stats.js
-- Fingerprint collected on load, POST to /api/stats
-- Returns correct/total, global percentile, national percentile
+- Fingerprint-based identification — browser-tied, no account needed
 - Shown after minimum 3 scored predictions
+- Top stats row: correct/total predictions, global percentile, national percentile
+- Round-by-round history panel below the stats row showing for each round:
+  - Which round (Group Stage, Round of 32, etc.)
+  - Tournament winner pick that round (in team colour)
+  - Match prediction accuracy that round (X/Y correct)
+- Only rounds the user actually submitted in are shown
+- Framed honestly: tied to this browser/device — works for the vast majority who don't clear cookies during the tournament
+- Enables the end-of-tournament Wrapped card narrative: "I backed Brazil from day one and switched after the QF"
+
+**Identity note:** This is the personal parallel to the nation-level accuracy leaderboard. Users can see their own journey through the tournament — which teams they backed, how their predictions held up round by round — without ever needing an account.
 
 ### 8.2 End-of-Tournament Share Card
 Spotify Wrapped-style personal summary at tournament end:
 - "You backed Brazil from Day 1 and were right when 71% doubted them"
 - "You correctly predicted X/Y matches — top Z% globally"
+- Round history woven into the narrative: "You switched to France in the QF — called it"
 - Canvas-generated, one-tap share to WhatsApp/Twitter
+- Data source: the round-by-round history already stored in /api/stats.js response
 
 ---
 
@@ -642,40 +655,71 @@ limit 20;
 
 ## Post-Launch Feature Roadmap
 
-### Immediate (before or on June 11)
-1. **Accuracy rank on share card** — one line, big impact, already have the data
-2. **Clean up test data** from Supabase before launch
+### ✅ Completed pre-launch
+- Accuracy rank badge on share card (medal system, gold/silver/bronze for top 3)
+- Share card modal — personal framing, Twemoji flags, consensus/contrarian/home-side variants, rivalry hook copy
+- Round-based tournament winner tracker — DB schema, round stamping, re-pick detection, banner
+- Personal stats panel — "My World Cup Journey" with match chips, perfect round gold treatment, streak badge, per-round percentiles, collapsible rounds
+- Supabase keep-alive GitHub Actions cron (daily ping at 08:00 UTC)
+- Privacy statement visible in header
+- Clean database — no test data
 
-### Week 1 — Group stage (June 11-18): monitor and seed storylines
-- Enter match results after each game
-- Monitor Vercel logs and flagged submissions
-- Manually identify and post the best storyline after each matchday
-- Share map screenshots on social
+### Week 1 — After first matchday results (June 11-18)
 
-### Week 2 — Group stage (June 18-27): enhance if traction
-- Build storyline detection queries (Section 9.3 Phase 2)
-- Add matchday prediction share card variant
-- Add leaderboard movement arrows
-- Consider auto-refresh every 5 minutes on matchdays
-- Featured storyline banner on the site
+**Priority 1 — "I told you so" contrarian share card**
+After a result comes in, if the user backed the winning team when less than 30% of the world did, they get a special shareable card:
+- Trigger: user's match pick was correct AND global pick % for that team was <30%
+- Card copy: "I called it. Only 28% of the world backed Morocco. 👀"
+- Framing: "Against the odds" badge on the chip in their personal stats
+- Implementation: needs match aggregate pick percentages joined into the stats response — build alongside Priority 2 since they share the same data
+- This is a high-emotion, immediate, very shareable moment — fire it after each result
+
+**Priority 2 — Per-match crowd % on hover/tap**
+When a user hovers or taps a match chip in their personal stats panel, show what % of all users picked each outcome:
+- "62% backed Mexico · 28% South Africa · 10% Draw"
+- Data needed: match aggregate picks joined into the stats API response alongside the user's own pick
+- Build at the same time as Priority 1 since both need the same match aggregate data
+- On mobile: tap to reveal, tap again to dismiss
+- On desktop: hover tooltip
+
+**Priority 3 — Storyline engine Phase 2 (matchday 3+)**
+After manually identifying stories in matchdays 1-2, automate detection:
+- Build the SQL detection queries from Section 9.3
+- Write results to the `storylines` table
+- Surface featured story banner above the leaderboard
+- Pull relevant nation storyline into the share card
+
+**Priority 4 — Matchday prediction share card variant**
+A separate card for match predictions, designed for pre-match Stories posting:
+- Shows: user's pick for today's match, their nation's collective pick, nation's current accuracy rank
+- Posted before kickoff ("I'm backing Brazil tonight — Nigeria calls it too")
+- Revisited after the result with outcome added
+
+**Priority 5 — Leaderboard movement arrows**
+Show ↑↓ movement on the accuracy leaderboard after each matchday:
+- "Nigeria ↑3" after a good matchday
+- The leaderboard update itself becomes a shareable moment
+
+**Priority 6 — Auto-refresh on matchdays**
+Every 5 minutes on days with matches — poll for updated nationData and recolour the map. Only activate on matchdays to save egress.
 
 ### R32 opening (June 28): rivalry features
-- Round-based tracker live (Section 7)
-- "How the world changed its mind" map animation
-- Nation rivalry card
-- Round summary storyline post
+- "How the world changed its mind" map animation — animated transition between group stage and R32 sentiment
+- Nation rivalry card — head-to-head comparison card for knockout matches. Layout: Nation A (flag, accuracy rank, tournament pick, match prediction) vs Nation B. Copy: "Who knows their football?" CTA: "Settle it at worldcupmap.io"
+- Round summary storyline post — "Group Stage: which nation called it best?"
+- Leaderboard movement arrows live
 
 ### R16 opening (July 5): contrarian features
-- "Most contrarian nation" auto-highlight
-- Storyline engine running automatically
+- "Most contrarian nation" auto-highlight — surfaces the most shareable facts: "Ghana is the only African nation not backing an African team"
+- Storyline engine running automatically (Phase 3)
 
 ### QF opening (July 11): head-to-head
-- Country vs country rivalry card
-- Real-world elimination integration fully live
+- Country vs country rivalry card fully live
+- Real-world elimination integration — `eliminated_at` column on teams table, frontend prompts re-pick if user's tournament pick has been eliminated, storyline engine surfaces elimination narratives
 
 ### SF + Final (July 15-19): personal wrap-up
-- Personal accuracy share card (Wrapped-style)
-- End-of-tournament map archive
+- Personal accuracy share card (Wrapped-style) — "You backed Brazil from Day 1 and were right when 71% doubted them. You correctly predicted X/Y matches — top Z% globally." Canvas-generated, one-tap share.
+- End-of-tournament map archive — keep the site live with the final map as a permanent record
 
 ### Explicitly out of scope
 - Real-time websockets
