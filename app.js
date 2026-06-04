@@ -646,16 +646,21 @@ async function generateShareCard(iso2) {
     statSub = hasEnoughData
       ? `of ${nationDisplayName} is with me`
       : `Be one of the first from ${nationDisplayName} on the map`
-  } else if (isContrarian && hasEnoughData && myPct !== null && myPct < 35) {
+  } else if (isContrarian && hasEnoughData && myPct !== null && myPct < 30) {
     tagline = `Bold call 🔥 — only ${myPct}% of ${nationDisplayName} agrees`
     statBig = `${myPct}%`
     statSub = `of ${nationDisplayName} agrees with me 👀`
   } else {
     tagline = `My pick for 2026 🏆`
-    statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
-    statSub = hasEnoughData
-      ? `of ${nationDisplayName} agrees`
-      : `Be one of the first from ${nationDisplayName} on the map`
+    if (hasEnoughData && myPct !== null) {
+      statBig = `${myPct}%`
+      statSub = myPct >= 50
+        ? `of ${nationDisplayName} agrees with me`
+        : `of ${nationDisplayName} is with me — the rest are missing out`
+    } else {
+      statBig = ''
+      statSub = `Be one of the first from ${nationDisplayName} on the map`
+    }
   }
 
   const accRanked = Object.values(nationData)
@@ -667,7 +672,7 @@ async function generateShareCard(iso2) {
   const hasAccData = accRank !== null && accRanked.length >= 3
 
   let globalLine = ''
-  if (isContrarian && hasEnoughData && myPct !== null && myPct < 35) {
+  if (isContrarian && hasEnoughData && myPct !== null && myPct < 30) {
     globalLine = `Think your country's got it wrong? Prove it at worldcupmap.io`
   } else if (hasEnoughData && countryTopPct !== null && countryTopPct >= 60 && !isContrarian) {
     globalLine = `${nationDisplayName} is united 🌍 — are you?`
