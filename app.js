@@ -1193,7 +1193,7 @@ async function pollNewPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 4; d++) {
+      for (let d = 0; d < 25; d++) {
         firePulse(row.nation_iso2, teamName)
       }
     })
