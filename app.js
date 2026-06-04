@@ -1041,7 +1041,7 @@ function initWebGL(width, height) {
       gl_PointSize = 4.0;
       vCol = aCol;
       float phase = aPos.x / uW * 6.28318;
-      float pulse = sin(uTime * 0.8 + phase * 3.0) * 0.5 + 0.5;
+      float pulse = sin(uTime * 0.4 - phase) * 0.5 + 0.5;
       vAlpha = 0.05 + pulse * 0.45;
     }
   `
