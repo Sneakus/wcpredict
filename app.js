@@ -137,6 +137,17 @@ const COUNTRY_NAME_TO_ISO = {
   'Guinea-Bissau':              'GW',
 }
 
+function getFeatureForIso(iso2) {
+  if (!window._worldFeatures) return null
+  if (iso2 && iso2.startsWith('GB-')) {
+    return window._worldFeatures.find(f => f.properties && f.properties.name === 'United Kingdom') || null
+  }
+  return window._worldFeatures.find(f => {
+    const name = f.properties && f.properties.name
+    return name && resolveIso(name) === iso2
+  }) || null
+}
+
 let currentView = 'wc'
 let svgPaths = null
 let nationData = {}
@@ -490,6 +501,99 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   ctx.fillText(line.trim(), x, y)
 }
 
+function hexToRgb01(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255
+  const g = parseInt(hex.slice(3,5),16)/255
+  const b = parseInt(hex.slice(5,7),16)/255
+  return [r, g, b]
+}
+
+function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH) {
+  const feature = getFeatureForIso(iso2)
+
+  const rawPoints = CITY_PULSES[iso2] || null
+  let dots = []
+
+  if (rawPoints && rawPoints.length > 0) {
+    const sample = rawPoints.length > 400
+      ? rawPoints.filter((_, i) => i % Math.ceil(rawPoints.length / 400) === 0)
+      : rawPoints
+    dots = sample.map(p => ({ lat: p[0], lng: p[1], w: p[2] }))
+  }
+
+  if (!feature) {
+    ctx.fillStyle = teamColor + 'CC'
+    ctx.beginPath()
+    ctx.arc(cx, cy, Math.min(maxW, maxH) * 0.35, 0, Math.PI * 2)
+    ctx.fill()
+    return
+  }
+
+  const projection = d3.geoMercator().fitExtent(
+    [[cx - maxW/2, cy - maxH/2], [cx + maxW/2, cy + maxH/2]],
+    feature
+  )
+  const pathGen = d3.geoPath(projection)
+
+  ctx.save()
+  const p2d = new Path2D(pathGen(feature))
+
+  ctx.fillStyle = '#111827'
+  ctx.fill(p2d)
+
+  const [r, g, b] = hexToRgb01(teamColor)
+  ctx.fillStyle = `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0.15)`
+  ctx.fill(p2d)
+
+  ctx.clip(p2d)
+
+  if (dots.length > 0) {
+    dots.forEach(pt => {
+      const px = projection([pt.lng, pt.lat])
+      if (!px) return
+      const alpha = 0.4 + pt.w * 0.6
+      ctx.fillStyle = `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},${alpha})`
+      ctx.beginPath()
+      ctx.arc(px[0], px[1], 3.5, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  } else {
+    const bounds = pathGen.bounds(feature)
+    const bx = bounds[0][0], by = bounds[0][1]
+    const bw = bounds[1][0] - bx, bh = bounds[1][1] - by
+    let placed = 0
+    let attempts = 0
+    while (placed < 200 && attempts < 2000) {
+      attempts++
+      const tx = bx + Math.random() * bw
+      const ty = by + Math.random() * bh
+      if (ctx.isPointInPath(p2d, tx, ty)) {
+        ctx.fillStyle = `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0.7)`
+        ctx.beginPath()
+        ctx.arc(tx, ty, 3.5, 0, Math.PI * 2)
+        ctx.fill()
+        placed++
+      }
+    }
+  }
+
+  ctx.restore()
+  ctx.strokeStyle = teamColor
+  ctx.lineWidth = 4
+  ctx.stroke(p2d)
+}
+
+function buildLandscapeCard(portraitCanvas) {
+  const lc = document.createElement('canvas')
+  lc.width = 1200
+  lc.height = 630
+  const lctx = lc.getContext('2d')
+  const scale = 1200 / portraitCanvas.width
+  lctx.drawImage(portraitCanvas, 0, -portraitCanvas.height * scale * 0.1,
+    portraitCanvas.width * scale, portraitCanvas.height * scale)
+  return lc
+}
+
 async function generateShareCard(iso2) {
   if (!tournamentWinner) return
   const nd = nationData[iso2]
@@ -518,7 +622,6 @@ async function generateShareCard(iso2) {
   }
   const teamColorIsLight = getLuminance(teamColor) > 0.15
   const teamTextColor = teamColorIsLight ? teamColor : '#fff'
-  const accentColor = teamColorIsLight ? teamColor : '#378ADD'
 
   let tagline = ''
   let statBig = ''
@@ -579,144 +682,129 @@ async function generateShareCard(iso2) {
   const W = 1080, H = 1920
   canvas.width = W; canvas.height = H
 
-  ctx.fillStyle = '#0d0d0d'
+  // Background
+  ctx.fillStyle = '#0a0a0f'
   ctx.fillRect(0, 0, W, H)
 
-  const grad = ctx.createLinearGradient(0, H * 0.5, 0, H)
-  grad.addColorStop(0, 'rgba(0,0,0,0)')
-  grad.addColorStop(1, accentColor + '30')
+  // Subtle gradient overlay using team colour
+  const grad = ctx.createLinearGradient(0, 0, 0, H)
+  grad.addColorStop(0, `rgba(${parseInt(teamColor.slice(1,3),16)},${parseInt(teamColor.slice(3,5),16)},${parseInt(teamColor.slice(5,7),16)},0.08)`)
+  grad.addColorStop(1, `rgba(${parseInt(teamColor.slice(1,3),16)},${parseInt(teamColor.slice(3,5),16)},${parseInt(teamColor.slice(5,7),16)},0.18)`)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, W, H)
 
-  ctx.fillStyle = accentColor
-  ctx.fillRect(0, 0, W, 10)
+  // Top accent bar
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, 0, W, 8)
 
   const PAD = 88
 
-  ctx.fillStyle = 'rgba(255,255,255,0.3)'
-  ctx.font = '500 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('MY 2026 WORLD CUP PICK', PAD, 180)
+  // Header
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('WORLD CUP MAP 2026', W/2, 80)
 
+  // Country shape with dots — hero visual, centred in top half
+  const shapeSize = 820
+  drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75)
+
+  // User country flag + name below shape
   if (flagImg) {
-    const flagSize = 200
-    const flagX = PAD
-    const flagY = 230
+    const fSize = 72
     ctx.save()
     ctx.beginPath()
-    ctx.roundRect(flagX, flagY, flagSize, flagSize, 16)
+    ctx.roundRect(W/2 - 160, 940, fSize, fSize, 8)
     ctx.clip()
-    ctx.drawImage(flagImg, flagX, flagY, flagSize, flagSize)
+    ctx.drawImage(flagImg, W/2 - 160, 940, fSize, fSize)
     ctx.restore()
   }
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'
+  ctx.font = '600 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(nationDisplayName.toUpperCase(), W/2 + 20, 990)
 
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'
-  ctx.font = '600 56px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText(nationDisplayName.toUpperCase(), PAD + 230, 340)
+  // Divider
+  ctx.strokeStyle = teamColor + '55'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(PAD, 1050)
+  ctx.lineTo(W - PAD, 1050)
+  ctx.stroke()
 
-  ctx.fillStyle = 'rgba(255,255,255,0.45)'
-  ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  wrapText(ctx, tagline, PAD, 490, W - PAD * 2, 70)
+  // Tagline
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.font = '400 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  wrapText(ctx, tagline, W/2, 1130, W - PAD*2, 66)
 
+  // Team name — big, team coloured
   ctx.fillStyle = teamTextColor
-  ctx.font = '800 148px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  ctx.textAlign = 'left'
-  const teamDisplayName = tournamentWinner.toUpperCase()
-  let teamFontSize = 148
+  let teamFontSize = 160
   ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
-  while (ctx.measureText(teamDisplayName).width > W - PAD * 2 && teamFontSize > 80) {
+  while (ctx.measureText(tournamentWinner.toUpperCase()).width > W - PAD*2 && teamFontSize > 80) {
     teamFontSize -= 8
     ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
   }
-  ctx.fillText(teamDisplayName, PAD, 680)
+  ctx.textAlign = 'center'
+  ctx.fillText(tournamentWinner.toUpperCase(), W/2, 1380)
 
-  ctx.strokeStyle = accentColor + '44'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(PAD, 730)
-  ctx.lineTo(W - PAD, 730)
-  ctx.stroke()
-
-  if (hasAccData) {
-    let rankText = ''
-    let rankColor = 'rgba(255,255,255,0.25)'
-
-    if (accRank === 1) {
-      rankText = `🥇 #1 most accurate nation on the map`
-      rankColor = '#FFD700'
-    } else if (accRank === 2) {
-      rankText = `🥈 #2 most accurate nation on the map`
-      rankColor = '#C0C0C0'
-    } else if (accRank === 3) {
-      rankText = `🥉 #3 most accurate nation on the map`
-      rankColor = '#CD7F32'
-    } else if (accRank <= 10) {
-      rankText = `#${accRank} most accurate nation on the map`
-      rankColor = 'rgba(255,255,255,0.7)'
-    } else {
-      rankText = `#${accRank} of ${accTotal} nations in accuracy`
-      rankColor = 'rgba(255,255,255,0.4)'
-    }
-
-    ctx.font = '600 44px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    const rankTextWidth = ctx.measureText(rankText).width
-    const badgePad = 40
-    const badgeW = rankTextWidth + badgePad * 2
-    const badgeH = 80
-    const badgeX = PAD
-    const badgeY = 760
-
-    ctx.fillStyle = 'rgba(255,255,255,0.06)'
-    ctx.beginPath()
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 40)
-    ctx.fill()
-
-    ctx.fillStyle = rankColor
-    ctx.textAlign = 'left'
-    ctx.fillText(rankText, badgeX + badgePad, badgeY + 54)
-  }
-
+  // Stat section
   if (statBig) {
     ctx.fillStyle = '#fff'
-    ctx.font = '800 340px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.font = '800 220px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(statBig, W / 2, 1200)
+    ctx.fillText(statBig, W/2, 1610)
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '500 54px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.font = '500 50px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W / 2, 1280, W - PAD * 2, 72)
+    wrapText(ctx, statSub, W/2, 1680, W - PAD*2, 66)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '500 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.font = '600 50px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1530, W - PAD * 2, 68)
+    wrapText(ctx, globalLine, W/2, 1780, W - PAD*2, 66)
   } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'
-    ctx.font = '400 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'
+    ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W / 2, 1000, W - PAD * 2, 80)
+    wrapText(ctx, statSub, W/2, 1540, W - PAD*2, 72)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.font = '600 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.65)'
+    ctx.font = '600 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W / 2, 1200, W - PAD * 2, 76)
+    wrapText(ctx, globalLine, W/2, 1680, W - PAD*2, 72)
   }
 
+  // Accuracy badge
+  if (hasAccData) {
+    let rankText = accRank === 1 ? `🥇 #1 most accurate nation`
+      : accRank === 2 ? `🥈 #2 most accurate nation`
+      : accRank === 3 ? `🥉 #3 most accurate nation`
+      : accRank <= 10 ? `#${accRank} most accurate nation`
+      : `#${accRank} of ${accTotal} nations`
+    let rankColor = accRank === 1 ? '#FFD700' : accRank === 2 ? '#C0C0C0' : accRank === 3 ? '#CD7F32' : 'rgba(255,255,255,0.6)'
+    ctx.fillStyle = rankColor
+    ctx.font = '600 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(rankText, W/2, 1830)
+  }
+
+  // Footer
   ctx.fillStyle = 'rgba(255,255,255,0.2)'
-  ctx.font = '400 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.font = '400 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('Add your country\'s pick →', PAD, 1820)
+  ctx.fillText('Add your country\'s pick →', PAD, 1880)
 
   ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  ctx.font = '600 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.font = '600 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   ctx.textAlign = 'right'
-  ctx.fillText('worldcupmap.io', W - PAD, 1820)
+  ctx.fillText('worldcupmap.io', W - PAD, 1880)
 
-  ctx.fillStyle = accentColor
-  ctx.fillRect(0, H - 10, W, 10)
+  // Bottom accent bar
+  ctx.fillStyle = teamColor
+  ctx.fillRect(0, H - 8, W, 8)
 
   const preview = document.getElementById('share-preview')
   preview.src = canvas.toDataURL('image/jpeg', 0.85)
@@ -727,7 +815,7 @@ function closeShareModal() {
   document.getElementById('share-modal').style.display = 'none'
 }
 
-async function shareCard() {
+async function shareCardStories() {
   const canvas = document.getElementById('share-canvas')
   canvas.toBlob(async (blob) => {
     const file = new File([blob], 'worldcupmap.jpg', { type: 'image/jpeg' })
@@ -738,19 +826,48 @@ async function shareCard() {
           text: `See how every country is picking the 2026 World Cup winner 🌍 worldcupmap.io`,
         })
       } catch (e) {
-        if (e.name !== 'AbortError') downloadCard()
+        if (e.name !== 'AbortError') downloadCardStories()
       }
     } else {
-      downloadCard()
+      downloadCardStories()
     }
   }, 'image/jpeg', 0.85)
 }
 
-function downloadCard() {
+async function shareCardWhatsApp() {
+  const portrait = document.getElementById('share-canvas')
+  const landscape = buildLandscapeCard(portrait)
+  landscape.toBlob(async (blob) => {
+    const file = new File([blob], 'worldcupmap-whatsapp.jpg', { type: 'image/jpeg' })
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          text: `See how every country is picking the 2026 World Cup winner 🌍 worldcupmap.io`,
+        })
+      } catch (e) {
+        if (e.name !== 'AbortError') downloadCardWhatsApp()
+      }
+    } else {
+      downloadCardWhatsApp()
+    }
+  }, 'image/jpeg', 0.85)
+}
+
+function downloadCardStories() {
   const canvas = document.getElementById('share-canvas')
   const a = document.createElement('a')
   a.download = 'worldcupmap.jpg'
   a.href = canvas.toDataURL('image/jpeg', 0.85)
+  a.click()
+}
+
+function downloadCardWhatsApp() {
+  const portrait = document.getElementById('share-canvas')
+  const landscape = buildLandscapeCard(portrait)
+  const a = document.createElement('a')
+  a.download = 'worldcupmap-whatsapp.jpg'
+  a.href = landscape.toDataURL('image/jpeg', 0.85)
   a.click()
 }
 
@@ -1136,13 +1253,6 @@ function redrawDots() {
   gl.drawArrays(gl.POINTS, 0, glPointCount)
 }
 
-function hexToRgb01(hex) {
-  const r = parseInt(hex.slice(1,3),16)/255
-  const g = parseInt(hex.slice(3,5),16)/255
-  const b = parseInt(hex.slice(5,7),16)/255
-  return [r, g, b]
-}
-
 function firePulse(iso2, teamName, attempt = 0) {
   if (!mapProjection) {
     if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
@@ -1273,6 +1383,7 @@ function buildMap() {
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
       .filter(d => d.properties && d.properties.name !== 'Antarctica')
+    window._worldFeatures = features
     svgPaths = g.selectAll('path.country').data(features).join('path')
       .attr('class', 'country')
       .attr('d', path)
