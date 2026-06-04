@@ -614,15 +614,6 @@ async function generateShareCard(iso2) {
   const teamData = WC_TEAMS.find(t => t.name === tournamentWinner)
   const teamColor = TEAM_COLORS[tournamentWinner] || '#378ADD'
 
-  function getLuminance(hex) {
-    const r = parseInt(hex.slice(1,3),16)/255
-    const g = parseInt(hex.slice(3,5),16)/255
-    const b = parseInt(hex.slice(5,7),16)/255
-    return 0.2126*r + 0.7152*g + 0.0722*b
-  }
-  const teamColorIsLight = getLuminance(teamColor) > 0.15
-  const teamTextColor = teamColorIsLight ? teamColor : '#fff'
-
   let tagline = ''
   let statBig = ''
   let statSub = ''
@@ -671,10 +662,20 @@ async function generateShareCard(iso2) {
   }
 
   let flagImg = null
+  let teamFlagImg = null
+  const teamIso = nations.find(n => n.name === tournamentWinner)?.iso2
+    || TEAMS.find(t => t.name === tournamentWinner)?.iso
+    || UK_NATIONS.find(t => t.name === tournamentWinner)?.iso
+    || null
   try {
     flagImg = await loadImage(isoToTwemojiUrl(iso2))
   } catch (e) {
-    console.warn('Flag load failed, skipping:', e)
+    console.warn('Flag load failed:', e)
+  }
+  try {
+    if (teamIso) teamFlagImg = await loadImage(isoToTwemojiUrl(teamIso))
+  } catch (e) {
+    console.warn('Team flag load failed:', e)
   }
 
   const canvas = document.getElementById('share-canvas')
@@ -709,45 +710,55 @@ async function generateShareCard(iso2) {
   const shapeSize = 820
   drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75)
 
-  // User country flag + name below shape
+  // Two flags + "backs" relationship — the hero message
+  const fSize = 96
+  const startX = W/2 - 220
+
+  // User country flag
   if (flagImg) {
-    const fSize = 72
     ctx.save()
     ctx.beginPath()
-    ctx.roundRect(W/2 - 160, 940, fSize, fSize, 8)
+    ctx.roundRect(startX, 950, fSize, fSize, 10)
     ctx.clip()
-    ctx.drawImage(flagImg, W/2 - 160, 940, fSize, fSize)
+    ctx.drawImage(flagImg, startX, 950, fSize, fSize)
     ctx.restore()
   }
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'
-  ctx.font = '600 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+
+  // "backs" text
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'
+  ctx.font = '500 44px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText(nationDisplayName.toUpperCase(), W/2 + 20, 990)
+  ctx.fillText('backs', W/2, 1006)
+
+  // Team flag
+  if (teamFlagImg) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.roundRect(W/2 + 80, 950, fSize, fSize, 10)
+    ctx.clip()
+    ctx.drawImage(teamFlagImg, W/2 + 80, 950, fSize, fSize)
+    ctx.restore()
+  }
+
+  // Nation name + team name on one line beneath
+  ctx.fillStyle = 'rgba(255,255,255,0.8)'
+  ctx.font = '700 58px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(`${nationDisplayName.toUpperCase()} BACKS ${tournamentWinner.toUpperCase()}`, W/2, 1110)
 
   // Divider
   ctx.strokeStyle = teamColor + '55'
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(PAD, 1050)
-  ctx.lineTo(W - PAD, 1050)
+  ctx.moveTo(PAD, 1160)
+  ctx.lineTo(W - PAD, 1160)
   ctx.stroke()
 
   // Tagline
   ctx.fillStyle = 'rgba(255,255,255,0.5)'
   ctx.font = '400 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   ctx.textAlign = 'center'
-  wrapText(ctx, tagline, W/2, 1130, W - PAD*2, 66)
-
-  // Team name — big, team coloured
-  ctx.fillStyle = teamTextColor
-  let teamFontSize = 160
-  ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
-  while (ctx.measureText(tournamentWinner.toUpperCase()).width > W - PAD*2 && teamFontSize > 80) {
-    teamFontSize -= 8
-    ctx.font = `800 ${teamFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
-  }
-  ctx.textAlign = 'center'
-  ctx.fillText(tournamentWinner.toUpperCase(), W/2, 1380)
+  wrapText(ctx, tagline, W/2, 1240, W - PAD*2, 66)
 
   // Stat section
   if (statBig) {
