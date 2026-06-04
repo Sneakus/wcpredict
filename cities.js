@@ -143,7 +143,7 @@ function getPulseCity(iso2) {
   for (const city of cities) {
     r -= city[2]
     if (r <= 0) {
-      const spread = Math.min(city[2] * 0.04, 0.4)
+      const spread = Math.min(city[2] * 0.008, 0.06)
       return {
         lat: city[0] + (Math.random() - 0.5) * spread,
         lng: city[1] + (Math.random() - 0.5) * spread
@@ -151,7 +151,7 @@ function getPulseCity(iso2) {
     }
   }
   const city = cities[0]
-  const spread = Math.min(city[2] * 0.04, 0.4)
+  const spread = Math.min(city[2] * 0.008, 0.06)
   return {
     lat: city[0] + (Math.random() - 0.5) * spread,
     lng: city[1] + (Math.random() - 0.5) * spread

@@ -1002,9 +1002,9 @@ function redrawDots(transform) {
     const projected = mapProjection([p.lng, p.lat])
     if (!projected) return
     const [mx, my] = projected
-    const sx = Math.round(transform.x + mx * transform.k + (seededRand() - 0.5) * 3)
-    const sy = Math.round(transform.y + my * transform.k + (seededRand() - 0.5) * 3)
-    const spriteSize = 4
+    const sx = Math.round(transform.x + mx * transform.k + (seededRand() - 0.5) * 4)
+    const sy = Math.round(transform.y + my * transform.k + (seededRand() - 0.5) * 4)
+    const spriteSize = 8
     if (dotSprites[p.color]) {
       dotCtx.drawImage(dotSprites[p.color], sx - spriteSize/2, sy - spriteSize/2)
     }
@@ -1017,9 +1017,9 @@ function drawDotAtLatLng(lng, lat, color) {
   if (!projected) return
   const [mx, my] = projected
   const t = currentZoomTransform
-  const sx = Math.round(t.x + mx * t.k + (Math.random() - 0.5) * 3)
-  const sy = Math.round(t.y + my * t.k + (Math.random() - 0.5) * 3)
-  const spriteSize = 4
+  const sx = Math.round(t.x + mx * t.k + (Math.random() - 0.5) * 4)
+  const sy = Math.round(t.y + my * t.k + (Math.random() - 0.5) * 4)
+  const spriteSize = 8
   if (dotSprites[color]) {
     dotCtx.drawImage(dotSprites[color], sx - spriteSize/2, sy - spriteSize/2)
   }
@@ -1038,7 +1038,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   if (trimmed) dotPoints.shift()
   dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
 
-  const spriteSize = 4
+  const spriteSize = 8
   if (!dotSprites[rawColor]) {
     const half = spriteSize / 2
     const offscreen = document.createElement('canvas')
@@ -1049,9 +1049,9 @@ function firePulse(iso2, teamName, attempt = 0) {
     const g = parseInt(rawColor.slice(3,5),16)
     const b = parseInt(rawColor.slice(5,7),16)
     const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,    `rgba(255,255,255,0.8)`)
-    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.5)`)
-    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.2)`)
+    grad.addColorStop(0,    `rgba(255,255,255,0.9)`)
+    grad.addColorStop(0.2,  `rgba(${r},${g},${b},0.6)`)
+    grad.addColorStop(0.5,  `rgba(${r},${g},${b},0.2)`)
     grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, spriteSize, spriteSize)
