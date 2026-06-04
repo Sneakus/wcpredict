@@ -151,7 +151,9 @@ let gl = null
 let glProgram = null
 let glBuffer = null
 let glColorBuffer = null
+let glLngBuffer = null
 let glPointCount = 0
+let dotAnimId = null
 let glWidth = 0
 let glHeight = 0
 let currentZoomTransform = { x: 0, y: 0, k: 1 }
@@ -1024,6 +1026,7 @@ function initWebGL(width, height) {
   const vertSrc = `
     attribute vec2 aPos;
     attribute vec3 aCol;
+    attribute float aLng;
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
     uniform float uDpr;
@@ -1040,9 +1043,10 @@ function initWebGL(width, height) {
       gl_Position = vec4(cx, cy, 0.0, 1.0);
       gl_PointSize = 4.0;
       vCol = aCol;
-      float phase = aPos.x / uW * 2.0;
-      float pulse = clamp(sin(uTime * 2.2 - phase), 0.0, 1.0);
-      vAlpha = 0.05 + pulse * 0.65;
+      float wavePos = fract(uTime * 0.05);
+      float dist = abs(aLng - wavePos);
+      float dim = 1.0 - smoothstep(0.0, 0.018, dist);
+      vAlpha = 0.68 * (1.0 - dim);
     }
   `
 
@@ -1073,22 +1077,44 @@ function initWebGL(width, height) {
 
   glBuffer = gl.createBuffer()
   glColorBuffer = gl.createBuffer()
+  glLngBuffer = gl.createBuffer()
 
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
   gl.viewport(0, 0, canvas.width, canvas.height)
+  startDotAnimation()
+}
+
+function startDotAnimation() {
+  if (dotAnimId != null) return
+  function frame() {
+    redrawDots()
+    dotAnimId = requestAnimationFrame(frame)
+  }
+  frame()
 }
 
 function uploadDotBuffers() {
   if (!gl || !glBuffer || dotPoints.length === 0) return
-  const positions = new Float32Array(dotPoints.length * 2)
-  const colors = new Float32Array(dotPoints.length * 3)
-  dotPoints.forEach((p, i) => {
+  const valid = []
+  dotPoints.forEach(p => {
     const proj = mapProjection([p.lng, p.lat])
     if (!proj) return
-    positions[i * 2]     = proj[0]
-    positions[i * 2 + 1] = proj[1]
-    colors[i * 3]     = p.r
+    valid.push({
+      x: proj[0], y: proj[1],
+      lng: (p.lng + 180) / 360,
+      r: p.r, g: p.g, b: p.b,
+    })
+  })
+  if (valid.length === 0) return
+  const positions = new Float32Array(valid.length * 2)
+  const colors = new Float32Array(valid.length * 3)
+  const lngs = new Float32Array(valid.length)
+  valid.forEach((p, i) => {
+    positions[i * 2] = p.x
+    positions[i * 2 + 1] = p.y
+    lngs[i] = p.lng
+    colors[i * 3] = p.r
     colors[i * 3 + 1] = p.g
     colors[i * 3 + 2] = p.b
   })
@@ -1096,7 +1122,9 @@ function uploadDotBuffers() {
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, glColorBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW)
-  glPointCount = dotPoints.length
+  gl.bindBuffer(gl.ARRAY_BUFFER, glLngBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, lngs, gl.STATIC_DRAW)
+  glPointCount = valid.length
 }
 
 function redrawDots() {
@@ -1117,6 +1145,11 @@ function redrawDots() {
   const aColLoc = gl.getAttribLocation(glProgram, 'aCol')
   gl.enableVertexAttribArray(aColLoc)
   gl.vertexAttribPointer(aColLoc, 3, gl.FLOAT, false, 0, 0)
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, glLngBuffer)
+  const aLngLoc = gl.getAttribLocation(glProgram, 'aLng')
+  gl.enableVertexAttribArray(aLngLoc)
+  gl.vertexAttribPointer(aLngLoc, 1, gl.FLOAT, false, 0, 0)
 
   // Set uniforms
   const t = currentZoomTransform
@@ -1188,13 +1221,6 @@ async function loadRecentPulses() {
 
     // Upload to GPU and render
     uploadDotBuffers()
-    if (!window._dotAnimFrame) {
-      function animateDots() {
-        redrawDots()
-        window._dotAnimFrame = requestAnimationFrame(animateDots)
-      }
-      animateDots()
-    }
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
   }
