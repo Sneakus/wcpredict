@@ -998,8 +998,8 @@ function firePulse(iso2, teamName, attempt = 0) {
   const [x, y] = projected
   if (isNaN(x) || isNaN(y)) return
 
-  const jx = x + (Math.random() - 0.5) * 10
-  const jy = y + (Math.random() - 0.5) * 10
+  const jx = x + (Math.random() - 0.5) * 2
+  const jy = y + (Math.random() - 0.5) * 2
 
   const dots = pulseLayer.selectAll('circle')
   const overflow = dots.size() - MAX_DOTS + 1
@@ -1010,12 +1010,12 @@ function firePulse(iso2, teamName, attempt = 0) {
   pulseLayer.append('circle')
     .attr('cx', jx)
     .attr('cy', jy)
-    .attr('r', 2.5)
+    .attr('r', 1.5)
     .attr('fill', color)
     .attr('opacity', 0)
     .attr('filter', 'url(#dot-glow)')
     .transition().duration(400)
-    .attr('opacity', 0.75)
+    .attr('opacity', 0.9)
 }
 
 async function loadRecentPulses() {
@@ -1082,7 +1082,7 @@ function buildMap() {
   const defs = svg.append('defs')
   const glow = defs.append('filter').attr('id', 'dot-glow')
     .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%')
-  glow.append('feGaussianBlur').attr('stdDeviation', 2).attr('result', 'blur')
+  glow.append('feGaussianBlur').attr('stdDeviation', '1.5').attr('result', 'blur')
   const feMerge = glow.append('feMerge')
   feMerge.append('feMergeNode').attr('in', 'blur')
   feMerge.append('feMergeNode').attr('in', 'SourceGraphic')
