@@ -1060,21 +1060,31 @@ function firePulse(iso2, teamName, attempt = 0) {
 
 async function loadRecentPulses() {
   try {
-    const { data, error } = await sb
-      .from('predictions')
-      .select('nation_iso2, tournament_winner, created_at')
-      .order('created_at', { ascending: true })
-    if (error || !data) return
+    let allData = []
+    let from = 0
+    const pageSize = 1000
 
-    if (data.length > 0) {
-      lastPulseTimestamp = data[data.length - 1].created_at
+    while (true) {
+      const { data, error } = await sb
+        .from('predictions')
+        .select('nation_iso2, tournament_winner, created_at')
+        .order('created_at', { ascending: true })
+        .range(from, from + pageSize - 1)
+
+      if (error || !data || data.length === 0) break
+      allData = allData.concat(data)
+      if (data.length < pageSize) break
+      from += pageSize
     }
 
-    data.forEach(row => {
+    if (allData.length > 0) {
+      lastPulseTimestamp = allData[allData.length - 1].created_at
+    }
+
+    allData.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      // Draw 3 dots per prediction to simulate density at lower vote counts
       firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
