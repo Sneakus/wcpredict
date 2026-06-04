@@ -152,7 +152,6 @@ let dotSprites = {}
 let dotPoints = []
 let currentZoomTransform = { x: 0, y: 0, k: 1 }
 let lastPulseTimestamp = null
-const MAX_DOTS = 10000
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -1034,8 +1033,6 @@ function firePulse(iso2, teamName, attempt = 0) {
   if (!city) return
 
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
-  const trimmed = dotPoints.length >= MAX_DOTS
-  if (trimmed) dotPoints.shift()
   dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
 
   const spriteSize = 8
@@ -1058,11 +1055,7 @@ function firePulse(iso2, teamName, attempt = 0) {
     dotSprites[rawColor] = offscreen
   }
 
-  if (trimmed) {
-    redrawDots(currentZoomTransform)
-  } else {
-    drawDotAtLatLng(city.lng, city.lat, rawColor)
-  }
+  drawDotAtLatLng(city.lng, city.lat, rawColor)
 }
 
 async function loadRecentPulses() {
@@ -1071,7 +1064,6 @@ async function loadRecentPulses() {
       .from('predictions')
       .select('nation_iso2, tournament_winner, created_at')
       .order('created_at', { ascending: true })
-      .limit(10000)
     if (error || !data) return
 
     if (data.length > 0) {
