@@ -1110,7 +1110,7 @@ function buildMap() {
 
   const g = svg.append('g')
   mapProjection = projection
-  pulseLayer = svg.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
+  pulseLayer = g.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
 
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
