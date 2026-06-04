@@ -149,6 +149,8 @@ let mapProjection = null
 let dotCanvas = null
 let dotCtx = null
 let dotSprites = {}
+let dotPoints = []
+let currentZoomTransform = { x: 0, y: 0, k: 1 }
 let lastPulseTimestamp = null
 const picks = {}
 
@@ -986,6 +988,24 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
+function redrawDots(transform) {
+  if (!dotCtx || !dotCanvas) return
+  dotCtx.clearRect(0, 0, dotCanvas.width, dotCanvas.height)
+  dotCtx.globalCompositeOperation = 'lighter'
+  dotPoints.forEach(p => {
+    const projected = mapProjection([p.lng, p.lat])
+    if (!projected) return
+    let [x, y] = projected
+    x = transform.x + x * transform.k
+    y = transform.y + y * transform.k
+    x = Math.round(x)
+    y = Math.round(y)
+    const spriteSize = 6
+    if (!dotSprites[p.color]) return
+    dotCtx.drawImage(dotSprites[p.color], x - spriteSize/2, y - spriteSize/2)
+  })
+}
+
 function firePulse(iso2, teamName, attempt = 0) {
   if (!mapProjection || !dotCtx) {
     if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
@@ -998,11 +1018,11 @@ function firePulse(iso2, teamName, attempt = 0) {
   const [x, y] = projected
   if (isNaN(x) || isNaN(y)) return
 
-  const jx = Math.round(x + (Math.random() - 0.5) * 3)
-  const jy = Math.round(y + (Math.random() - 0.5) * 3)
+  const jx = Math.round(x + (Math.random() - 0.5) * 2)
+  const jy = Math.round(y + (Math.random() - 0.5) * 2)
 
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
-  const spriteSize = 14
+  const spriteSize = 6
 
   const cacheKey = rawColor
   if (!dotSprites[cacheKey]) {
@@ -1015,16 +1035,20 @@ function firePulse(iso2, teamName, attempt = 0) {
     const g = parseInt(rawColor.slice(3,5),16)
     const b = parseInt(rawColor.slice(5,7),16)
     const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,   `rgba(255,255,255,0.8)`)
-    grad.addColorStop(0.25, `rgba(${r},${g},${b},0.6)`)
-    grad.addColorStop(0.6,  `rgba(${r},${g},${b},0.2)`)
+    grad.addColorStop(0,    `rgba(255,255,255,0.5)`)
+    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.3)`)
+    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.1)`)
     grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, spriteSize, spriteSize)
     dotSprites[cacheKey] = offscreen
   }
 
-  dotCtx.drawImage(dotSprites[cacheKey], jx - spriteSize/2, jy - spriteSize/2)
+  dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
+
+  const dx = Math.round(currentZoomTransform.x + jx * currentZoomTransform.k)
+  const dy = Math.round(currentZoomTransform.y + jy * currentZoomTransform.k)
+  dotCtx.drawImage(dotSprites[cacheKey], dx - spriteSize/2, dy - spriteSize/2)
 }
 
 async function loadRecentPulses() {
@@ -1111,6 +1135,8 @@ function buildMap() {
       g.attr('transform', event.transform)
       svg.style('cursor', event.transform.k > 1 ? 'grabbing' : 'grab')
       tooltip.style.display = 'none'
+      currentZoomTransform = event.transform
+      redrawDots(event.transform)
     })
   svg.call(zoom)
   svg.on('dblclick.zoom', null)
