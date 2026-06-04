@@ -1003,7 +1003,7 @@ function redrawDots(transform) {
     const [mx, my] = projected
     const sx = Math.round(transform.x + mx * transform.k + (seededRand() - 0.5) * 4)
     const sy = Math.round(transform.y + my * transform.k + (seededRand() - 0.5) * 4)
-    const spriteSize = 3
+    const spriteSize = 4
     if (dotSprites[p.color]) {
       dotCtx.drawImage(dotSprites[p.color], sx - spriteSize/2, sy - spriteSize/2)
     }
@@ -1018,7 +1018,7 @@ function drawDotAtLatLng(lng, lat, color) {
   const t = currentZoomTransform
   const sx = Math.round(t.x + mx * t.k + (Math.random() - 0.5) * 4)
   const sy = Math.round(t.y + my * t.k + (Math.random() - 0.5) * 4)
-  const spriteSize = 3
+  const spriteSize = 4
   if (dotSprites[color]) {
     dotCtx.drawImage(dotSprites[color], sx - spriteSize/2, sy - spriteSize/2)
   }
@@ -1035,7 +1035,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
   dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
 
-  const spriteSize = 3
+  const spriteSize = 4
   if (!dotSprites[rawColor]) {
     const half = spriteSize / 2
     const offscreen = document.createElement('canvas')
@@ -1046,9 +1046,9 @@ function firePulse(iso2, teamName, attempt = 0) {
     const g = parseInt(rawColor.slice(3,5),16)
     const b = parseInt(rawColor.slice(5,7),16)
     const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,    `rgba(255,255,255,0.5)`)
-    grad.addColorStop(0.2,  `rgba(${r},${g},${b},0.25)`)
-    grad.addColorStop(0.6,  `rgba(${r},${g},${b},0.08)`)
+    grad.addColorStop(0,    `rgba(255,255,255,0.65)`)
+    grad.addColorStop(0.2,  `rgba(${r},${g},${b},0.35)`)
+    grad.addColorStop(0.6,  `rgba(${r},${g},${b},0.12)`)
     grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, spriteSize, spriteSize)
@@ -1085,6 +1085,7 @@ async function loadRecentPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
+      firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
       firePulse(row.nation_iso2, teamName)
     })
