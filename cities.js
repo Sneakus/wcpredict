@@ -142,7 +142,18 @@ function getPulseCity(iso2) {
   let r = Math.random() * totalWeight
   for (const city of cities) {
     r -= city[2]
-    if (r <= 0) return { lat: city[0], lng: city[1] }
+    if (r <= 0) {
+      const spread = Math.min(city[2] * 0.04, 0.4)
+      return {
+        lat: city[0] + (Math.random() - 0.5) * spread,
+        lng: city[1] + (Math.random() - 0.5) * spread
+      }
+    }
   }
-  return { lat: cities[0][0], lng: cities[0][1] }
+  const city = cities[0]
+  const spread = Math.min(city[2] * 0.04, 0.4)
+  return {
+    lat: city[0] + (Math.random() - 0.5) * spread,
+    lng: city[1] + (Math.random() - 0.5) * spread
+  }
 }

@@ -992,18 +992,36 @@ function redrawDots(transform) {
   if (!dotCtx || !dotCanvas) return
   dotCtx.clearRect(0, 0, dotCanvas.width, dotCanvas.height)
   dotCtx.globalCompositeOperation = 'lighter'
+  let seed = 1
+  function seededRand() {
+    seed = (seed * 16807) % 2147483647
+    return (seed - 1) / 2147483646
+  }
   dotPoints.forEach(p => {
     const projected = mapProjection([p.lng, p.lat])
     if (!projected) return
-    let [x, y] = projected
-    x = transform.x + x * transform.k
-    y = transform.y + y * transform.k
-    x = Math.round(x)
-    y = Math.round(y)
-    const spriteSize = 6
-    if (!dotSprites[p.color]) return
-    dotCtx.drawImage(dotSprites[p.color], x - spriteSize/2, y - spriteSize/2)
+    const [mx, my] = projected
+    const sx = Math.round(transform.x + mx * transform.k + (seededRand() - 0.5) * 3)
+    const sy = Math.round(transform.y + my * transform.k + (seededRand() - 0.5) * 3)
+    const spriteSize = 4
+    if (dotSprites[p.color]) {
+      dotCtx.drawImage(dotSprites[p.color], sx - spriteSize/2, sy - spriteSize/2)
+    }
   })
+}
+
+function drawDotAtLatLng(lng, lat, color) {
+  if (!dotCtx || !mapProjection) return
+  const projected = mapProjection([lng, lat])
+  if (!projected) return
+  const [mx, my] = projected
+  const t = currentZoomTransform
+  const sx = Math.round(t.x + mx * t.k + (Math.random() - 0.5) * 3)
+  const sy = Math.round(t.y + my * t.k + (Math.random() - 0.5) * 3)
+  const spriteSize = 4
+  if (dotSprites[color]) {
+    dotCtx.drawImage(dotSprites[color], sx - spriteSize/2, sy - spriteSize/2)
+  }
 }
 
 function firePulse(iso2, teamName, attempt = 0) {
@@ -1013,19 +1031,12 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const projected = mapProjection([city.lng, city.lat])
-  if (!projected) return
-  const [x, y] = projected
-  if (isNaN(x) || isNaN(y)) return
-
-  const jx = Math.round(x + (Math.random() - 0.5) * 2)
-  const jy = Math.round(y + (Math.random() - 0.5) * 2)
 
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
-  const spriteSize = 6
+  dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
 
-  const cacheKey = rawColor
-  if (!dotSprites[cacheKey]) {
+  const spriteSize = 4
+  if (!dotSprites[rawColor]) {
     const half = spriteSize / 2
     const offscreen = document.createElement('canvas')
     offscreen.width = spriteSize
@@ -1035,20 +1046,16 @@ function firePulse(iso2, teamName, attempt = 0) {
     const g = parseInt(rawColor.slice(3,5),16)
     const b = parseInt(rawColor.slice(5,7),16)
     const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,    `rgba(255,255,255,0.5)`)
-    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.3)`)
-    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.1)`)
+    grad.addColorStop(0,    `rgba(255,255,255,0.4)`)
+    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.15)`)
+    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.05)`)
     grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, spriteSize, spriteSize)
-    dotSprites[cacheKey] = offscreen
+    dotSprites[rawColor] = offscreen
   }
 
-  dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
-
-  const dx = Math.round(currentZoomTransform.x + jx * currentZoomTransform.k)
-  const dy = Math.round(currentZoomTransform.y + jy * currentZoomTransform.k)
-  dotCtx.drawImage(dotSprites[cacheKey], dx - spriteSize/2, dy - spriteSize/2)
+  drawDotAtLatLng(city.lng, city.lat, rawColor)
 }
 
 async function loadRecentPulses() {
