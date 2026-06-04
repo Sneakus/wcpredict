@@ -152,6 +152,7 @@ let dotSprites = {}
 let dotPoints = []
 let currentZoomTransform = { x: 0, y: 0, k: 1 }
 let lastPulseTimestamp = null
+const MAX_DOTS = 10000
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -1033,6 +1034,8 @@ function firePulse(iso2, teamName, attempt = 0) {
   if (!city) return
 
   const rawColor = TEAM_COLORS[teamName] || '#378ADD'
+  const trimmed = dotPoints.length >= MAX_DOTS
+  if (trimmed) dotPoints.shift()
   dotPoints.push({ lng: city.lng, lat: city.lat, color: rawColor })
 
   const spriteSize = 4
@@ -1046,16 +1049,20 @@ function firePulse(iso2, teamName, attempt = 0) {
     const g = parseInt(rawColor.slice(3,5),16)
     const b = parseInt(rawColor.slice(5,7),16)
     const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
-    grad.addColorStop(0,    `rgba(255,255,255,0.4)`)
-    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.15)`)
-    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.05)`)
+    grad.addColorStop(0,    `rgba(255,255,255,0.8)`)
+    grad.addColorStop(0.3,  `rgba(${r},${g},${b},0.5)`)
+    grad.addColorStop(0.7,  `rgba(${r},${g},${b},0.2)`)
     grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, spriteSize, spriteSize)
     dotSprites[rawColor] = offscreen
   }
 
-  drawDotAtLatLng(city.lng, city.lat, rawColor)
+  if (trimmed) {
+    redrawDots(currentZoomTransform)
+  } else {
+    drawDotAtLatLng(city.lng, city.lat, rawColor)
+  }
 }
 
 async function loadRecentPulses() {
@@ -1064,7 +1071,7 @@ async function loadRecentPulses() {
       .from('predictions')
       .select('nation_iso2, tournament_winner, created_at')
       .order('created_at', { ascending: true })
-      .limit(2000)
+      .limit(10000)
     if (error || !data) return
 
     if (data.length > 0) {
