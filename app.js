@@ -508,15 +508,17 @@ function hexToRgb01(hex) {
   return [r, g, b]
 }
 
-function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH) {
+function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) {
   const feature = getFeatureForIso(iso2)
 
   const rawPoints = CITY_PULSES[iso2] || null
   let dots = []
 
   if (rawPoints && rawPoints.length > 0) {
-    const sample = rawPoints.length > 400
-      ? rawPoints.filter((_, i) => i % Math.ceil(rawPoints.length / 400) === 0)
+    const pct = (votePct != null && votePct > 0) ? votePct / 100 : 1.0
+    const maxDots = Math.max(20, Math.round(400 * pct))
+    const sample = rawPoints.length > maxDots
+      ? rawPoints.filter((_, i) => i % Math.ceil(rawPoints.length / maxDots) === 0)
       : rawPoints
     dots = sample.map(p => ({ lat: p[0], lng: p[1], w: p[2] }))
   }
@@ -552,9 +554,20 @@ function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH) {
       const px = projection([pt.lng, pt.lat])
       if (!px) return
       const alpha = 0.4 + pt.w * 0.6
-      ctx.fillStyle = `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},${alpha})`
+
+      // Outer glow
+      const glow = ctx.createRadialGradient(px[0], px[1], 0, px[0], px[1], 8)
+      glow.addColorStop(0, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},${alpha})`)
+      glow.addColorStop(1, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0)`)
+      ctx.fillStyle = glow
       ctx.beginPath()
-      ctx.arc(px[0], px[1], 3.5, 0, Math.PI * 2)
+      ctx.arc(px[0], px[1], 8, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Bright core
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`
+      ctx.beginPath()
+      ctx.arc(px[0], px[1], 1.8, 0, Math.PI * 2)
       ctx.fill()
     })
   } else {
@@ -563,14 +576,23 @@ function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH) {
     const bw = bounds[1][0] - bx, bh = bounds[1][1] - by
     let placed = 0
     let attempts = 0
-    while (placed < 200 && attempts < 2000) {
+    const pct2 = (votePct != null && votePct > 0) ? votePct / 100 : 1.0
+    const syntheticTarget = Math.max(10, Math.round(200 * pct2))
+    while (placed < syntheticTarget && attempts < 2000) {
       attempts++
       const tx = bx + Math.random() * bw
       const ty = by + Math.random() * bh
       if (ctx.isPointInPath(p2d, tx, ty)) {
-        ctx.fillStyle = `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0.7)`
+        const glow2 = ctx.createRadialGradient(tx, ty, 0, tx, ty, 8)
+        glow2.addColorStop(0, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0.7)`)
+        glow2.addColorStop(1, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0)`)
+        ctx.fillStyle = glow2
         ctx.beginPath()
-        ctx.arc(tx, ty, 3.5, 0, Math.PI * 2)
+        ctx.arc(tx, ty, 8, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'
+        ctx.beginPath()
+        ctx.arc(tx, ty, 1.8, 0, Math.PI * 2)
         ctx.fill()
         placed++
       }
@@ -708,7 +730,7 @@ async function generateShareCard(iso2) {
 
   // Country shape with dots — hero visual, centred in top half
   const shapeSize = 820
-  drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75)
+  drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75, myPct)
 
   // Two flags + "backs" relationship — the hero message
   const fSize = 96
