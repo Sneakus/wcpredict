@@ -426,9 +426,14 @@ function scrollToPredict() {
 }
 
 function isoToTwemojiUrl(iso2) {
-  if (!iso2 || iso2.startsWith('GB-')) {
-    const code = 'gb'
-    return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f1ec-1f1e7.png`
+  const subdivisionFlags = {
+    'GB-ENG': '1f3f4-e0067-e0062-e0065-e006e-e0067-e007f',
+    'GB-SCT': '1f3f4-e0067-e0062-e0073-e0063-e0074-e007f',
+    'GB-WLS': '1f3f4-e0067-e0062-e0077-e006c-e0073-e007f',
+    'GB-NIR': '1f1ec-1f1e7',
+  }
+  if (subdivisionFlags[iso2]) {
+    return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${subdivisionFlags[iso2]}.png`
   }
   const points = iso2.toUpperCase().split('').map(c =>
     (0x1F1E6 + c.charCodeAt(0) - 65).toString(16)
