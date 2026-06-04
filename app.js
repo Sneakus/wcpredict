@@ -1048,7 +1048,7 @@ function initWebGL(width, height) {
     varying vec3 vCol;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d);
+      float alpha = smoothstep(0.5, 0.0, d) * 0.6;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1139,7 +1139,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const [r, g, b] = hexToRgb01('#A855F7')
+  const [r, g, b] = hexToRgb01('#7C3AED')
   dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
