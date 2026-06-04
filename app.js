@@ -420,7 +420,11 @@ async function submitPredictions() {
     buildLeaderboards()
     generateShareCard(iso2)
     const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
-    if (userTeam) setTimeout(() => firePulse(iso2, userTeam), 500)
+    if (userTeam) setTimeout(() => {
+      for (let d = 0; d < 4; d++) firePulse(iso2, userTeam)
+      uploadDotBuffers()
+      redrawDots()
+    }, 500)
     hidePickPrompt()
     setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
   } else {
@@ -1161,9 +1165,10 @@ async function loadRecentPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      // Draw 2 dots per prediction for density
-      firePulse(row.nation_iso2, teamName)
-      firePulse(row.nation_iso2, teamName)
+      // Draw 4 dots per prediction for density
+      for (let d = 0; d < 4; d++) {
+        firePulse(row.nation_iso2, teamName)
+      }
     })
 
     // Upload to GPU and render
@@ -1189,8 +1194,9 @@ async function pollNewPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      firePulse(row.nation_iso2, teamName)
-      firePulse(row.nation_iso2, teamName)
+      for (let d = 0; d < 4; d++) {
+        firePulse(row.nation_iso2, teamName)
+      }
     })
     uploadDotBuffers()
     redrawDots()
