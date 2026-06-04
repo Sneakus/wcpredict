@@ -1042,7 +1042,7 @@ function initWebGL(width, height) {
       vCol = aCol;
       float phase = aPos.x / uW * 6.28318;
       float pulse = sin(uTime * 0.8 + phase * 3.0) * 0.5 + 0.5;
-      vAlpha = 0.15 + pulse * 0.85;
+      vAlpha = 0.05 + pulse * 0.45;
     }
   `
 
@@ -1146,7 +1146,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const [r, g, b] = hexToRgb01('#B47FFF')
+  const [r, g, b] = [0.47, 0.18, 0.72]
   dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
