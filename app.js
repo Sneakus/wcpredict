@@ -146,9 +146,10 @@ let tournamentWinner = null
 let visitorFingerprint = null
 let currentRound = 'group_stage'
 let mapProjection = null
-let pulseLayer = null
+let dotCanvas = null
+let dotCtx = null
+let dotSprites = {}
 let lastPulseTimestamp = null
-const MAX_DOTS = 2000
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -986,36 +987,44 @@ function switchView(view, btn) {
 }
 
 function firePulse(iso2, teamName, attempt = 0) {
-  if (!mapProjection || !pulseLayer) {
+  if (!mapProjection || !dotCtx) {
     if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
     return
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const color = TEAM_COLORS[teamName] || 'rgba(255,255,255,0.6)'
   const projected = mapProjection([city.lng, city.lat])
   if (!projected) return
   const [x, y] = projected
   if (isNaN(x) || isNaN(y)) return
 
-  const jx = x + (Math.random() - 0.5) * 2
-  const jy = y + (Math.random() - 0.5) * 2
+  const jx = Math.round(x + (Math.random() - 0.5) * 3)
+  const jy = Math.round(y + (Math.random() - 0.5) * 3)
 
-  const dots = pulseLayer.selectAll('circle')
-  const overflow = dots.size() - MAX_DOTS + 1
-  if (overflow > 0) {
-    dots.filter((d, i) => i < overflow).remove()
+  const rawColor = TEAM_COLORS[teamName] || '#378ADD'
+  const spriteSize = 14
+
+  const cacheKey = rawColor
+  if (!dotSprites[cacheKey]) {
+    const half = spriteSize / 2
+    const offscreen = document.createElement('canvas')
+    offscreen.width = spriteSize
+    offscreen.height = spriteSize
+    const ctx = offscreen.getContext('2d')
+    const r = parseInt(rawColor.slice(1,3),16)
+    const g = parseInt(rawColor.slice(3,5),16)
+    const b = parseInt(rawColor.slice(5,7),16)
+    const grad = ctx.createRadialGradient(half, half, 0, half, half, half)
+    grad.addColorStop(0,   `rgba(255,255,255,0.8)`)
+    grad.addColorStop(0.25, `rgba(${r},${g},${b},0.6)`)
+    grad.addColorStop(0.6,  `rgba(${r},${g},${b},0.2)`)
+    grad.addColorStop(1,    `rgba(${r},${g},${b},0)`)
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, spriteSize, spriteSize)
+    dotSprites[cacheKey] = offscreen
   }
 
-  pulseLayer.append('circle')
-    .attr('cx', jx)
-    .attr('cy', jy)
-    .attr('r', 0.8)
-    .attr('fill', color)
-    .attr('opacity', 0)
-    .attr('filter', 'url(#dot-glow)')
-    .transition().duration(400)
-    .attr('opacity', 1)
+  dotCtx.drawImage(dotSprites[cacheKey], jx - spriteSize/2, jy - spriteSize/2)
 }
 
 async function loadRecentPulses() {
@@ -1079,17 +1088,19 @@ function buildMap() {
     .attr('viewBox', `0 0 ${width} ${height}`)
     .attr('width', '100%')
     .style('cursor', 'grab')
-  const defs = svg.append('defs')
-  const glow = defs.append('filter').attr('id', 'dot-glow')
-    .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%')
-  glow.append('feGaussianBlur').attr('stdDeviation', '0.8').attr('result', 'blur')
-  const feMerge = glow.append('feMerge')
-  feMerge.append('feMergeNode').attr('in', 'blur')
-  feMerge.append('feMergeNode').attr('in', 'SourceGraphic')
   const projection = d3.geoNaturalEarth1()
     .scale(width / 6.3)
     .translate([width / 2, height / 2.1])
   const path = d3.geoPath(projection)
+
+  const canvas = document.getElementById('dot-canvas')
+  canvas.width = width
+  canvas.height = height
+  canvas.style.width = '100%'
+  dotCanvas = canvas
+  dotCtx = canvas.getContext('2d')
+  dotCtx.globalCompositeOperation = 'lighter'
+
   const mapWrap = document.getElementById('map-wrap')
   const tooltip = document.getElementById('tooltip')
 
@@ -1134,7 +1145,6 @@ function buildMap() {
         d3.select(this).attr('opacity', 1)
       })
     updateMapColors()
-    pulseLayer = g.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
   })
 }
 
