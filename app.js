@@ -148,6 +148,7 @@ let currentRound = 'group_stage'
 let mapProjection = null
 let pulseLayer = null
 let lastPulseTimestamp = null
+const MAX_DOTS = 2000
 const picks = {}
 
 function getFlagEmoji(iso) {
@@ -997,46 +998,44 @@ function firePulse(iso2, teamName, attempt = 0) {
   const [x, y] = projected
   if (isNaN(x) || isNaN(y)) return
 
-  const g = pulseLayer.append('g')
-  g.append('circle')
-    .attr('cx', x).attr('cy', y).attr('r', 2.5)
-    .attr('fill', color).attr('opacity', 0.9)
-    .transition().duration(1800).attr('opacity', 0).remove()
-  g.append('circle')
-    .attr('cx', x).attr('cy', y).attr('r', 3)
-    .attr('fill', 'none').attr('stroke', color)
-    .attr('stroke-width', 1.5).attr('opacity', 0.8)
-    .transition().duration(1800).ease(d3.easeCubicOut)
-    .attr('r', 18).attr('opacity', 0).remove()
-  g.append('circle')
-    .attr('cx', x).attr('cy', y).attr('r', 3)
-    .attr('fill', 'none').attr('stroke', color)
-    .attr('stroke-width', 0.8).attr('opacity', 0.4)
-    .transition().duration(2600).ease(d3.easeCubicOut)
-    .attr('r', 28).attr('opacity', 0)
-    .on('end', () => g.remove())
+  const jx = x + (Math.random() - 0.5) * 10
+  const jy = y + (Math.random() - 0.5) * 10
+
+  const dots = pulseLayer.selectAll('circle')
+  const overflow = dots.size() - MAX_DOTS + 1
+  if (overflow > 0) {
+    dots.filter((d, i) => i < overflow).remove()
+  }
+
+  pulseLayer.append('circle')
+    .attr('cx', jx)
+    .attr('cy', jy)
+    .attr('r', 2.5)
+    .attr('fill', color)
+    .attr('opacity', 0)
+    .attr('filter', 'url(#dot-glow)')
+    .transition().duration(400)
+    .attr('opacity', 0.75)
 }
 
 async function loadRecentPulses() {
   try {
-    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { data, error } = await sb
       .from('predictions')
       .select('nation_iso2, tournament_winner, created_at')
-      .gte('created_at', since)
       .order('created_at', { ascending: true })
-      .limit(40)
+      .limit(2000)
     if (error || !data) return
 
     if (data.length > 0) {
       lastPulseTimestamp = data[data.length - 1].created_at
     }
 
-    data.forEach((row, i) => {
+    data.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.tournament_winner || (nd && nd.pick) || null
       if (!teamName) return
-      setTimeout(() => firePulse(row.nation_iso2, teamName), i * (4000 / Math.max(data.length, 1)))
+      firePulse(row.nation_iso2, teamName)
     })
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
@@ -1080,6 +1079,13 @@ function buildMap() {
     .attr('viewBox', `0 0 ${width} ${height}`)
     .attr('width', '100%')
     .style('cursor', 'grab')
+  const defs = svg.append('defs')
+  const glow = defs.append('filter').attr('id', 'dot-glow')
+    .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%')
+  glow.append('feGaussianBlur').attr('stdDeviation', 2).attr('result', 'blur')
+  const feMerge = glow.append('feMerge')
+  feMerge.append('feMergeNode').attr('in', 'blur')
+  feMerge.append('feMergeNode').attr('in', 'SourceGraphic')
   const projection = d3.geoNaturalEarth1()
     .scale(width / 6.3)
     .translate([width / 2, height / 2.1])
@@ -1106,7 +1112,6 @@ function buildMap() {
 
   const g = svg.append('g')
   mapProjection = projection
-  pulseLayer = g.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
 
   d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
@@ -1129,6 +1134,7 @@ function buildMap() {
         d3.select(this).attr('opacity', 1)
       })
     updateMapColors()
+    pulseLayer = g.append('g').attr('class', 'pulse-layer').style('pointer-events', 'none')
   })
 }
 
