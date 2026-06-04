@@ -1027,7 +1027,7 @@ function initWebGL(width, height) {
       float cx = (sx * uDpr / (uW * uDpr)) * 2.0 - 1.0;
       float cy = 1.0 - (sy * uDpr / (uH * uDpr)) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = 2.5 * uDpr;
+      gl_PointSize = 7.0;
       vCol = aCol;
     }
   `
@@ -1037,10 +1037,10 @@ function initWebGL(width, height) {
     precision mediump float;
     varying vec3 vCol;
     void main() {
-      float d = length(gl_PointCoord - vec2(0.5)) * 2.0;
-      float a = 1.0 - smoothstep(0.0, 1.0, d);
-      a = pow(a, 1.8);
-      gl_FragColor = vec4(vCol * a, a * 0.35);
+      float d = length(gl_PointCoord - vec2(0.5));
+      float alpha = smoothstep(0.5, 0.0, d) * 0.7 + 0.35;
+      alpha = clamp(alpha, 0.0, 1.0);
+      gl_FragColor = vec4(vCol, alpha);
     }
   `
 
