@@ -1028,7 +1028,9 @@ function initWebGL(width, height) {
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
     uniform float uDpr;
+    uniform float uTime;
     varying vec3 vCol;
+    varying float vAlpha;
     void main() {
       // apply zoom transform in CSS pixel space
       float sx = aPos.x * uK + uTx;
@@ -1039,6 +1041,10 @@ function initWebGL(width, height) {
       gl_Position = vec4(cx, cy, 0.0, 1.0);
       gl_PointSize = 2.5;
       vCol = aCol;
+      float phase = aPos.x / uW * 25.13274;
+      float t = sin(uTime * 1.5 - phase);
+      float pulse = clamp(t * 8.0, 0.0, 1.0);
+      vAlpha = 0.02 + pulse * 0.68;
     }
   `
 
@@ -1046,9 +1052,10 @@ function initWebGL(width, height) {
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
+    varying float vAlpha;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d);
+      float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1121,6 +1128,8 @@ function redrawDots() {
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uW'),  glWidth)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uH'),  glHeight)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uDpr'), dpr)
+  const uTime = gl.getUniformLocation(glProgram, 'uTime')
+  gl.uniform1f(uTime, performance.now() / 1000)
 
   gl.drawArrays(gl.POINTS, 0, glPointCount)
 }
@@ -1139,7 +1148,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const [r, g, b] = hexToRgb01('#A855F7')
+  const [r, g, b] = [0.47, 0.18, 0.72]
   dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
@@ -1181,7 +1190,13 @@ async function loadRecentPulses() {
 
     // Upload to GPU and render
     uploadDotBuffers()
-    redrawDots()
+    if (!window._dotAnimFrame) {
+      function animateDots() {
+        redrawDots()
+        window._dotAnimFrame = requestAnimationFrame(animateDots)
+      }
+      animateDots()
+    }
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
   }
