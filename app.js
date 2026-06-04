@@ -1190,13 +1190,7 @@ async function loadRecentPulses() {
 
     // Upload to GPU and render
     uploadDotBuffers()
-    if (!window._dotAnimFrame) {
-      function animateDots() {
-        redrawDots()
-        window._dotAnimFrame = requestAnimationFrame(animateDots)
-      }
-      animateDots()
-    }
+    redrawDots()
   } catch (e) {
     console.warn('loadRecentPulses failed:', e)
   }
