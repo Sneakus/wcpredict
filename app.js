@@ -1139,8 +1139,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const rawColor = TEAM_COLORS[teamName] || '#378ADD'
-  const [r, g, b] = hexToRgb01(rawColor)
+  const [r, g, b] = hexToRgb01('#A855F7')
   dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
 }
 
