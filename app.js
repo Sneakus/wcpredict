@@ -525,21 +525,21 @@ async function generateShareCard(iso2) {
   let statSub = ''
 
   if (isSelfPick) {
-    tagline = `I'm backing the home side 🏠`
+    tagline = `Home pride 🏠 — I'm backing ${tournamentWinner}`
     statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
     statSub = hasEnoughData
-      ? `of ${nationDisplayName} agrees`
-      : `Be one of the first from ${nationDisplayName} to pick`
+      ? `of ${nationDisplayName} is with me`
+      : `Be one of the first from ${nationDisplayName} on the map`
   } else if (isContrarian && hasEnoughData && myPct !== null && myPct < 35) {
-    tagline = `I'm going against the grain 🔥`
+    tagline = `Bold call 🔥 — only ${myPct}% of ${nationDisplayName} agrees`
     statBig = `${myPct}%`
-    statSub = `of ${nationDisplayName} agrees with me — the rest are wrong`
+    statSub = `of ${nationDisplayName} agrees — the rest haven't seen what I've seen`
   } else {
-    tagline = `I'm backing ${tournamentWinner}`
+    tagline = `My pick for 2026 🏆`
     statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
     statSub = hasEnoughData
       ? `of ${nationDisplayName} agrees`
-      : `Add your pick to the map`
+      : `Be one of the first from ${nationDisplayName} on the map`
   }
 
   const accRanked = Object.values(nationData)
@@ -551,18 +551,20 @@ async function generateShareCard(iso2) {
   const hasAccData = accRank !== null && accRanked.length >= 3
 
   let globalLine = ''
-  if (hasAccData) {
+  if (hasEnoughData && countryTopPct !== null && countryTopPct >= 60) {
+    globalLine = `${nationDisplayName} is united 🌍 — are you?`
+  } else if (hasAccData) {
     if (accRank === 1) {
-      globalLine = `Think anyone can top us? 👀`
+      globalLine = `${nationDisplayName} leads the world. Can anyone top us? 👀`
     } else if (accRank <= 3) {
-      globalLine = `We're coming for #1. Can anyone stop us?`
+      globalLine = `${nationDisplayName} is top 3. We're coming for #1.`
     } else if (accRank <= 10) {
-      globalLine = `We're in the hunt. Can anyone catch us?`
+      globalLine = `${nationDisplayName} is top 10 globally. Watch out.`
     } else {
-      globalLine = `Think your nation knows better? Prove it.`
+      globalLine = `Where does your country stand? 🌍 worldcupmap.io`
     }
   } else {
-    globalLine = `Think your nation knows better? Prove it.`
+    globalLine = `Where does your country stand? 🌍 worldcupmap.io`
   }
 
   let flagImg = null
