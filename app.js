@@ -411,7 +411,7 @@ async function submitPredictions() {
     buildLeaderboards()
     generateShareCard(iso2)
     const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
-    if (userTeam) firePulse(iso2, userTeam)
+    if (userTeam) setTimeout(() => firePulse(iso2, userTeam), 500)
     hidePickPrompt()
     setCookie('wcp_picked_date', new Date().toISOString().slice(0, 10), 1)
   } else {
@@ -984,45 +984,36 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
-function firePulse(iso2, teamName) {
-  if (!mapProjection || !pulseLayer) return
+function firePulse(iso2, teamName, attempt = 0) {
+  if (!mapProjection || !pulseLayer) {
+    if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
+    return
+  }
   const city = getPulseCity(iso2)
   if (!city) return
-
   const color = TEAM_COLORS[teamName] || 'rgba(255,255,255,0.6)'
-  const [x, y] = mapProjection([city.lng, city.lat])
-  if (!x || !y) return
+  const projected = mapProjection([city.lng, city.lat])
+  if (!projected) return
+  const [x, y] = projected
+  if (isNaN(x) || isNaN(y)) return
 
   const g = pulseLayer.append('g')
-
   g.append('circle')
     .attr('cx', x).attr('cy', y).attr('r', 2.5)
-    .attr('fill', color)
-    .attr('opacity', 0.9)
-    .transition().duration(1800)
-    .attr('opacity', 0)
-    .remove()
-
+    .attr('fill', color).attr('opacity', 0.9)
+    .transition().duration(1800).attr('opacity', 0).remove()
   g.append('circle')
     .attr('cx', x).attr('cy', y).attr('r', 3)
-    .attr('fill', 'none')
-    .attr('stroke', color)
-    .attr('stroke-width', 1.5)
-    .attr('opacity', 0.8)
+    .attr('fill', 'none').attr('stroke', color)
+    .attr('stroke-width', 1.5).attr('opacity', 0.8)
     .transition().duration(1800).ease(d3.easeCubicOut)
-    .attr('r', 18)
-    .attr('opacity', 0)
-    .remove()
-
+    .attr('r', 18).attr('opacity', 0).remove()
   g.append('circle')
     .attr('cx', x).attr('cy', y).attr('r', 3)
-    .attr('fill', 'none')
-    .attr('stroke', color)
-    .attr('stroke-width', 0.8)
-    .attr('opacity', 0.4)
+    .attr('fill', 'none').attr('stroke', color)
+    .attr('stroke-width', 0.8).attr('opacity', 0.4)
     .transition().duration(2600).ease(d3.easeCubicOut)
-    .attr('r', 28)
-    .attr('opacity', 0)
+    .attr('r', 28).attr('opacity', 0)
     .on('end', () => g.remove())
 }
 
