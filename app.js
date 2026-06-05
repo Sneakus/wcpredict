@@ -1186,24 +1186,15 @@ function initWebGL(width, height) {
     attribute vec3 aCol;
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
-    uniform float uDpr;
-    uniform float uTime;
     varying vec3 vCol;
-    varying float vAlpha;
     void main() {
-      // apply zoom transform in CSS pixel space
       float sx = aPos.x * uK + uTx;
       float sy = aPos.y * uK + uTy;
-      // convert to clip space (account for DPR)
-      float cx = (sx * uDpr / (uW * uDpr)) * 2.0 - 1.0;
-      float cy = 1.0 - (sy * uDpr / (uH * uDpr)) * 2.0;
+      float cx = (sx / uW) * 2.0 - 1.0;
+      float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
       gl_PointSize = 4.0;
       vCol = aCol;
-      float phase = aPos.x / uW * 25.13274;
-      float t = sin(uTime * 1.5 - phase);
-      float pulse = clamp(t * 8.0, 0.0, 1.0);
-      vAlpha = 0.02 + pulse * 0.68;
     }
   `
 
@@ -1211,10 +1202,9 @@ function initWebGL(width, height) {
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
-    varying float vAlpha;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * vAlpha;
+      float alpha = smoothstep(0.5, 0.0, d) * 0.85;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1262,7 +1252,6 @@ function uploadDotBuffers() {
 
 function redrawDots() {
   if (!gl || !glProgram || glPointCount === 0) return
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
   gl.clear(gl.COLOR_BUFFER_BIT)
 
   gl.useProgram(glProgram)
@@ -1286,9 +1275,6 @@ function redrawDots() {
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uK'),  t.k)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uW'),  glWidth)
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uH'),  glHeight)
-  gl.uniform1f(gl.getUniformLocation(glProgram, 'uDpr'), dpr)
-  const uTime = gl.getUniformLocation(glProgram, 'uTime')
-  gl.uniform1f(uTime, performance.now() / 1000)
 
   gl.drawArrays(gl.POINTS, 0, glPointCount)
 }
