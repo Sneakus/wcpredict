@@ -1064,12 +1064,12 @@ function updateMapColors() {
   })
 }
 
-function buildTooltipWC(nd) {
+function buildTooltipWC(nd, name, showAll) {
   if (!nd.pick) return '<div class="no-data">No predictions yet</div>'
-  const allEntries = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1])
+  const allSorted = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1])
   const totalVotes = Object.values(nd.tournamentPicks||{}).reduce((s, v) => s + v, 0)
-  const entries = allEntries.slice(0, 5)
-  let html = entries.map(([team,count]) => {
+  const entries = showAll ? allSorted : allSorted.slice(0, 5)
+  return entries.map(([team,count]) => {
     const pct = Math.round(count/totalVotes*100)
     return `<div class="tt-row">
       <span class="tt-label">${team}</span>
@@ -1077,17 +1077,6 @@ function buildTooltipWC(nd) {
       <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${count})</span></span>
     </div>`
   }).join('')
-  if (allEntries.length > 5) {
-    html += `<div class="tooltip-show-more" onclick="this.parentElement.querySelector('.tooltip-all').style.display='block';this.style.display='none'" style="cursor:pointer;color:rgba(255,255,255,0.4);font-size:12px;margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)">Show all ${allEntries.length} teams ▾</div>`
-    html += `<div class="tooltip-all" style="display:none;margin-top:4px">`
-    allEntries.slice(5).forEach(([team, count]) => {
-      const pct = Math.round(count / totalVotes * 100)
-      const color = TEAM_COLORS[team] || '#888'
-      html += `<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span><span style="flex:1;font-size:12px;opacity:0.7">${team}</span><span style="font-size:12px;font-weight:600">${pct}%</span><span style="font-size:11px;opacity:0.4;margin-left:2px">(${count})</span></div>`
-    })
-    html += `</div>`
-  }
-  return html
 }
 
 function buildTooltipMatchday(nd) {
@@ -1172,7 +1161,7 @@ function buildTooltipUK() {
   }).join('<div style="height:1px;background:rgba(255,255,255,0.08);margin:5px 0"></div>')
 }
 
-function showTooltip(event, name, isUK, mapWrap, width) {
+function showTooltip(event, name, isUK, mapWrap, width, showAll) {
   const tooltip = document.getElementById('tooltip')
   const rect = mapWrap.getBoundingClientRect()
   const x = event.clientX - rect.left
@@ -1184,7 +1173,7 @@ function showTooltip(event, name, isUK, mapWrap, width) {
         const iso = resolveIso(name)
         const nd = iso ? nationData[iso] : null
         return nd
-          ? (currentView==='wc' ? buildTooltipWC(nd) : buildTooltipMatchday(nd))
+          ? (currentView==='wc' ? buildTooltipWC(nd, name, showAll) : buildTooltipMatchday(nd))
           : '<div class="no-data">No predictions yet</div>'
       })()
   tooltip.style.display = 'block'
@@ -1417,6 +1406,7 @@ function buildMap() {
 
   const mapWrap = document.getElementById('map-wrap')
   const tooltip = document.getElementById('tooltip')
+  let tooltipSticky = false
 
   const zoom = d3.zoom()
     .scaleExtent([1, 8])
@@ -1424,11 +1414,18 @@ function buildMap() {
     .on('zoom', event => {
       g.attr('transform', event.transform)
       svg.style('cursor', event.transform.k > 1 ? 'grabbing' : 'grab')
+      tooltipSticky = false
       tooltip.style.display = 'none'
       currentZoomTransform = event.transform
       redrawDots()
     })
   svg.call(zoom)
+  svg.on('click', function(event) {
+    if (!event.target.closest || !event.target.closest('path.country')) {
+      tooltipSticky = false
+      tooltip.style.display = 'none'
+    }
+  })
   svg.on('dblclick.zoom', null)
   svg.on('dblclick', () => svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity))
 
@@ -1454,11 +1451,20 @@ function buildMap() {
         const name = d.properties && d.properties.name
         if (!name) return
         d3.select(this).attr('opacity', 0.7)
-        showTooltip(event, name, name === 'United Kingdom', mapWrap, width)
+        if (!tooltipSticky) showTooltip(event, name, name === 'United Kingdom', mapWrap, width, false)
       })
       .on('mouseleave', function() {
-        tooltip.style.display = 'none'
-        d3.select(this).attr('opacity', 1)
+        if (!tooltipSticky) {
+          tooltip.style.display = 'none'
+          d3.select(this).attr('opacity', 1)
+        }
+      })
+      .on('click', function(event, d) {
+        const name = d.properties && d.properties.name
+        if (!name) return
+        tooltipSticky = true
+        showTooltip(event, name, name === 'United Kingdom', mapWrap, width, true)
+        event.stopPropagation()
       })
       .on('touchstart', function(event, d) {
         event.preventDefault()
@@ -1466,20 +1472,21 @@ function buildMap() {
         if (!name) return
         const lastTapped = this.dataset.lastTapped
         const now = Date.now()
+        const touch = event.touches[0]
+        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
         if (lastTapped && now - parseInt(lastTapped) < 600) {
-          const showMore = tooltip.querySelector('.tooltip-show-more')
-          if (showMore) showMore.click()
+          showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width, true)
+          tooltipSticky = true
           return
         }
         this.dataset.lastTapped = now
-        const touch = event.touches[0]
-        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
-        showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width)
+        showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width, false)
       }, { passive: false })
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
       document.addEventListener('touchstart', function(e) {
         if (!e.target.closest('path.country') && !e.target.closest('#tooltip')) {
+          tooltipSticky = false
           tooltip.style.display = 'none'
         }
       }, { passive: true })
