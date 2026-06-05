@@ -1079,7 +1079,7 @@ function buildTooltipWC(nd) {
   }).join('')
   if (allEntries.length > 5) {
     html += `<div class="tooltip-show-more" onclick="this.parentElement.querySelector('.tooltip-all').style.display='block';this.style.display='none'" style="cursor:pointer;color:rgba(255,255,255,0.4);font-size:12px;margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)">Show all ${allEntries.length} teams ▾</div>`
-    html += `<div class="tooltip-all" style="display:none;max-height:200px;overflow-y:auto;margin-top:4px">`
+    html += `<div class="tooltip-all" style="display:none;margin-top:4px">`
     allEntries.slice(5).forEach(([team, count]) => {
       const pct = Math.round(count / totalVotes * 100)
       const color = TEAM_COLORS[team] || '#888'
@@ -1460,6 +1460,30 @@ function buildMap() {
         tooltip.style.display = 'none'
         d3.select(this).attr('opacity', 1)
       })
+      .on('touchstart', function(event, d) {
+        event.preventDefault()
+        const name = d.properties && d.properties.name
+        if (!name) return
+        const lastTapped = this.dataset.lastTapped
+        const now = Date.now()
+        if (lastTapped && now - parseInt(lastTapped) < 600) {
+          const showMore = tooltip.querySelector('.tooltip-show-more')
+          if (showMore) showMore.click()
+          return
+        }
+        this.dataset.lastTapped = now
+        const touch = event.touches[0]
+        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
+        showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width)
+      }, { passive: false })
+    if (!window._tooltipTouchDismiss) {
+      window._tooltipTouchDismiss = true
+      document.addEventListener('touchstart', function(e) {
+        if (!e.target.closest('path.country') && !e.target.closest('#tooltip')) {
+          tooltip.style.display = 'none'
+        }
+      }, { passive: true })
+    }
     updateMapColors()
   })
 }
