@@ -1312,8 +1312,10 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
+  const jitterLng = (Math.random() - 0.5) * 4.0
+  const jitterLat = (Math.random() - 0.5) * 2.5
   const [r, g, b] = [1.0, 1.0, 1.0]
-  dotPoints.push({ lng: city.lng, lat: city.lat, r, g, b })
+  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b })
 }
 
 async function loadRecentPulses() {
@@ -1341,8 +1343,16 @@ async function loadRecentPulses() {
       lastPulseTimestamp = allData[allData.length - 1].created_at
     }
 
-    // Build all dot points
-    allData.forEach(row => {
+    // Sample evenly across dataset for dot rendering — cap at 5000 rows
+    // This keeps load fast while ensuring all countries are represented
+    let dotData = allData
+    if (allData.length > 5000) {
+      const step = Math.floor(allData.length / 5000)
+      dotData = allData.filter((_, i) => i % step === 0).slice(0, 5000)
+    }
+
+    // Build dot points
+    dotData.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
