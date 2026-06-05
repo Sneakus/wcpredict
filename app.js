@@ -463,7 +463,7 @@ async function submitPredictions() {
     generateShareCard(iso2)
     const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
     if (userTeam) setTimeout(() => {
-      for (let d = 0; d < 25; d++) firePulse(iso2, userTeam)
+      firePulse(iso2, userTeam)
       uploadDotBuffers()
       redrawDots()
     }, 500)
@@ -1219,7 +1219,7 @@ function initWebGL(width, height) {
       float cx = (sx / uW) * 2.0 - 1.0;
       float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = 4.0;
+      gl_PointSize = 5.0;
       vCol = aCol;
     }
   `
@@ -1230,7 +1230,7 @@ function initWebGL(width, height) {
     varying vec3 vCol;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * 0.85;
+      float alpha = smoothstep(0.5, 0.0, d) * 1.0;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1312,8 +1312,8 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const jitterLng = (Math.random() - 0.5) * 4.0
-  const jitterLat = (Math.random() - 0.5) * 2.5
+  const jitterLng = (Math.random() - 0.5) * 1.2
+  const jitterLat = (Math.random() - 0.5) * 0.8
   const [r, g, b] = [1.0, 1.0, 1.0]
   dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b })
 }
@@ -1343,23 +1343,12 @@ async function loadRecentPulses() {
       lastPulseTimestamp = allData[allData.length - 1].created_at
     }
 
-    // Sample evenly across dataset for dot rendering — cap at 5000 rows
-    // This keeps load fast while ensuring all countries are represented
-    let dotData = allData
-    if (allData.length > 5000) {
-      const step = Math.floor(allData.length / 5000)
-      dotData = allData.filter((_, i) => i % step === 0).slice(0, 5000)
-    }
-
     // Build dot points
-    dotData.forEach(row => {
+    allData.forEach(row => {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      // Draw 25 dots per prediction for density
-      for (let d = 0; d < 25; d++) {
-        firePulse(row.nation_iso2, teamName)
-      }
+      firePulse(row.nation_iso2, teamName)
     })
 
     // Upload to GPU and render
@@ -1385,9 +1374,7 @@ async function pollNewPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 25; d++) {
-        firePulse(row.nation_iso2, teamName)
-      }
+      firePulse(row.nation_iso2, teamName)
     })
     uploadDotBuffers()
     redrawDots()
