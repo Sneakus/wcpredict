@@ -1069,7 +1069,7 @@ function buildTooltipWC(nd, name, showAll) {
   const allSorted = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1])
   const totalVotes = Object.values(nd.tournamentPicks||{}).reduce((s, v) => s + v, 0)
   const entries = showAll ? allSorted : allSorted.slice(0, 5)
-  return entries.map(([team,count]) => {
+  let html = entries.map(([team,count]) => {
     const pct = Math.round(count/totalVotes*100)
     return `<div class="tt-row">
       <span class="tt-label">${team}</span>
@@ -1077,6 +1077,10 @@ function buildTooltipWC(nd, name, showAll) {
       <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${count})</span></span>
     </div>`
   }).join('')
+  if (!showAll && allSorted.length > 5) {
+    html += `<div style="font-size:12px;opacity:0.45;text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">+ ${allSorted.length - 5} more teams — click to expand</div>`
+  }
+  return html
 }
 
 function buildTooltipMatchday(nd) {
