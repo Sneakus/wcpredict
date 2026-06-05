@@ -310,28 +310,49 @@ async function loadPredictionCount() {
 
 async function loadNationData() {
   const pageSize = 1000
+  const byNation = {}
+
   let from = 0
-  let allData = []
+  let allTournament = []
+  while (true) {
+    const { data, error } = await sb
+      .from('predictions')
+      .select('nation_iso2, predicted_winner')
+      .is('match_id', null)
+      .range(from, from + pageSize - 1)
+    if (error) { console.error('loadNationData error:', error); return }
+    if (!data || data.length === 0) break
+    allTournament = allTournament.concat(data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+
+  from = 0
+  let allMatch = []
   while (true) {
     const { data, error } = await sb
       .from('predictions')
       .select('nation_iso2, match_id, predicted_winner, score')
+      .not('match_id', 'is', null)
       .range(from, from + pageSize - 1)
     if (error) { console.error('loadNationData error:', error); return }
     if (!data || data.length === 0) break
-    allData = allData.concat(data)
+    allMatch = allMatch.concat(data)
     if (data.length < pageSize) break
     from += pageSize
   }
-  const data = allData
-  const byNation = {}
-  data.forEach(row => {
+
+  allTournament.forEach(row => {
     const iso = row.nation_iso2
     if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, correct: 0, total: 0 }
-    if (row.predicted_winner && !row.match_id) {
+    if (row.predicted_winner) {
       byNation[iso].tournamentPicks[row.predicted_winner] =
         (byNation[iso].tournamentPicks[row.predicted_winner] || 0) + 1
     }
+  })
+  allMatch.forEach(row => {
+    const iso = row.nation_iso2
+    if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, correct: 0, total: 0 }
     if (row.match_id) {
       if (!byNation[iso].matchPicks[row.match_id]) byNation[iso].matchPicks[row.match_id] = {}
       byNation[iso].matchPicks[row.match_id][row.predicted_winner] =
@@ -792,19 +813,19 @@ async function generateShareCard(iso2) {
   // Stat section
   if (statBig) {
     ctx.fillStyle = '#fff'
-    ctx.font = '800 220px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.font = '800 260px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(statBig, W/2, 1610)
+    ctx.fillText(statBig, W/2, 1530)
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '500 50px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.font = '500 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, statSub, W/2, 1680, W - PAD*2, 66)
+    wrapText(ctx, statSub, W/2, 1620, W - PAD*2, 70)
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)'
-    ctx.font = '600 50px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.65)'
+    ctx.font = '600 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     ctx.textAlign = 'center'
-    wrapText(ctx, globalLine, W/2, 1780, W - PAD*2, 66)
+    wrapText(ctx, globalLine, W/2, 1760, W - PAD*2, 70)
   } else {
     ctx.fillStyle = 'rgba(255,255,255,0.4)'
     ctx.font = '400 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -1045,16 +1066,28 @@ function updateMapColors() {
 
 function buildTooltipWC(nd) {
   if (!nd.pick) return '<div class="no-data">No predictions yet</div>'
-  const entries = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1]).slice(0,3)
-  const total = entries.reduce((s,[,v])=>s+v,0)
-  return entries.map(([team,count]) => {
-    const pct = Math.round(count/total*100)
+  const allEntries = Object.entries(nd.tournamentPicks||{}).sort((a,b)=>b[1]-a[1])
+  const totalVotes = Object.values(nd.tournamentPicks||{}).reduce((s, v) => s + v, 0)
+  const entries = allEntries.slice(0, 5)
+  let html = entries.map(([team,count]) => {
+    const pct = Math.round(count/totalVotes*100)
     return `<div class="tt-row">
       <span class="tt-label">${team}</span>
       <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${TEAM_COLORS[team]||'#888'}"></div></div>
       <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${count})</span></span>
     </div>`
   }).join('')
+  if (allEntries.length > 5) {
+    html += `<div class="tooltip-show-more" onclick="this.parentElement.querySelector('.tooltip-all').style.display='block';this.style.display='none'" style="cursor:pointer;color:rgba(255,255,255,0.4);font-size:12px;margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)">Show all ${allEntries.length} teams ▾</div>`
+    html += `<div class="tooltip-all" style="display:none;max-height:200px;overflow-y:auto;margin-top:4px">`
+    allEntries.slice(5).forEach(([team, count]) => {
+      const pct = Math.round(count / totalVotes * 100)
+      const color = TEAM_COLORS[team] || '#888'
+      html += `<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span><span style="flex:1;font-size:12px;opacity:0.7">${team}</span><span style="font-size:12px;font-weight:600">${pct}%</span><span style="font-size:11px;opacity:0.4;margin-left:2px">(${count})</span></div>`
+    })
+    html += `</div>`
+  }
+  return html
 }
 
 function buildTooltipMatchday(nd) {
@@ -1091,7 +1124,7 @@ function buildTooltipUK() {
       </div>`
     }
     if (currentView === 'wc') {
-      const entries = Object.entries(nd.tournamentPicks || {}).sort((a, b) => b[1] - a[1]).slice(0, 2)
+      const entries = Object.entries(nd.tournamentPicks || {}).sort((a, b) => b[1] - a[1]).slice(0, 5)
       if (!entries.length) {
         return `<div class="tt-uk-nation">
           <div class="tt-uk-label">${flag} ${nation.name}</div>
