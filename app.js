@@ -1273,6 +1273,9 @@ function uploadDotBuffers() {
     window._countryPaths = {}
     if (window._worldFeatures && mapProjection) {
       const pathGen = d3.geoPath(mapProjection)
+
+      // Erode each country path inward by ~3 pixels by drawing the path
+      // then using a smaller bounding-box-fitted version
       window._worldFeatures.forEach(f => {
         const name = f.properties && f.properties.name
         const iso2 = name && COUNTRY_NAME_TO_ISO[name]
@@ -1284,7 +1287,7 @@ function uploadDotBuffers() {
           } catch(e) {}
         }
       })
-      // Also map UK subdivisions to GB path
+
       const gbFeature = window._worldFeatures.find(f =>
         f.properties && f.properties.name === 'United Kingdom')
       if (gbFeature) {
@@ -1306,9 +1309,16 @@ function uploadDotBuffers() {
     const proj = mapProjection([p.lng, p.lat])
     if (!proj) return
 
-    // Check if dot falls inside its country boundary
+    // Check if dot falls inside its country boundary (3px inset for dot radius)
     const path = window._countryPaths && window._countryPaths[p.iso2]
-    if (path && !clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd')) return
+    if (path) {
+      const inside = clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0] + 3, proj[1], 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0] - 3, proj[1], 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0], proj[1] + 3, 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0], proj[1] - 3, 'evenodd')
+      if (!inside) return
+    }
 
     validPositions.push(proj[0], proj[1])
     validColors.push(p.r, p.g, p.b)
