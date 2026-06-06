@@ -1,5 +1,5 @@
 # World Cup Map — Design Document
-*Last updated: June 3, 2026 | Tournament starts: June 11, 2026 | Days remaining: 8*
+*Last updated: June 6, 2026 | Tournament starts: June 11, 2026 | Days remaining: 5*
 *Live at: worldcupmap.io*
 
 ---
@@ -32,7 +32,7 @@
 - Match locking: Supabase pg_cron every minute + server-side kickoff_at check
 - Scoring trigger on match_results insert
 - Personal stats tracker (/api/stats.js) — shows after 3+ scored predictions
-- get_accuracy_percentile RPC function in Supabase
+- get_accuracy_percentile RPC function in Supabase (supports p_round parameter)
 - FingerprintJS v4 — fingerprint hashed and stored
 - IP hashing + duplicate detection per match per IP
 - CF-IPCountry header stored, country_override flagged
@@ -45,9 +45,58 @@
 - About / How it works collapsible section
 - Mobile responsive (44px tap targets, stacked panels, full-width submit)
 - UTF-8/LF protection via .gitattributes (critical on Windows)
-- Cache busting: app.js?v=15 in index.html
+- Cache busting: app.js?v=49 in index.html
 - Privacy-first: no accounts, no ads, IP hashed, no raw personal data stored
+- Privacy statement visible in header: "No accounts. No ads. No trackers."
 - Post-submit share card modal — 1080×1920 canvas, personal framing, Twemoji flags, Web Share API
+- Share card: accuracy rank badge (gold/silver/bronze medals), rivalry hook copy
+- Share card: automatic consensus/contrarian/home-side framing based on data
+- Round-based tournament winner tracker — DB schema, round stamping, re-pick detection, banner
+- rounds table in Supabase with RLS + grant select on rounds to anon
+- Personal stats panel — "My World Cup Journey" with:
+  - Match chips (green/red for correct/wrong)
+  - Perfect round gold treatment
+  - Streak badge (🔥 N in a row)
+  - Per-round percentiles (global + national)
+  - Collapsible rounds (current open, past collapsed)
+- Supabase keep-alive GitHub Actions cron (daily ping at 08:00 UTC — confirmed working)
+- Live activity dot map — WebGL canvas overlay (raw WebGL, no library)
+  - Additive blending (SRC_ALPHA, ONE) for glow effect
+  - Soft radial glow in fragment shader via gl_PointCoord
+  - Population-weighted city coordinates (cities.js — 11,000+ points across 52 countries)
+  - Gaussian scatter within metro areas for realistic distribution
+  - Dots stay locked to map on zoom/pan via D3 transform uniforms
+  - On-load replay of all predictions (paginated fetch)
+  - 60-second polling for new predictions
+  - 2 dots drawn per prediction for density
+
+### 🔖 Checkpoint — June 6, 2026 (pre-Poisson-disk experiment)
+
+The dot map is in a known-good state at commit `~d5bedf0` / `app.js?v=109`. If the Poisson-disk experiment doesn't improve things, revert to this baseline:
+
+**Working baseline:**
+- 25 dots per prediction
+- Jitter ±0.09° lng / ±0.07° lat (~15km spread) in `firePulse()`
+- `gl_PointSize = clamp(1.8 + uK * 0.25, 1.8, 4.0)` — uniform small dots
+- Fragment alpha = `0.6` with smoothstep falloff
+- Additive blending (`gl.SRC_ALPHA, gl.ONE`)
+- `cities.js` built from GeoNames cities1000 with Shapely per-country land clipping (0.02° erosion)
+- 198 countries covered, ~18,891 base city points
+- Runtime clip uses 2px erosion with `'evenodd'` fill rule
+- World atlas resolution: 50m
+- Pagination ordered by `id` not `created_at` (fixes Supabase pagination instability)
+
+**Known limitations of this baseline:**
+- Dots cluster around city centres (city-centric, not population-area-distributed)
+- Sparse rural areas remain empty
+- Doesn't fully match the "organic country fill" aesthetic of Plague Inc. or eurostat population grids
+
+**Files involved:**
+- `app.js` (rendering, clipping, shaders)
+- `cities.js` (city points, regenerated via `generate_cities.py`)
+- `generate_cities.py` (Python build script, requires `cities1000.txt` from GeoNames)
+
+To revert: `git checkout d5bedf0 -- app.js cities.js` then bump cache bust and push.
 
 ### ❌ Not built (post-launch roadmap — see Post-Launch Feature Roadmap section)
 - "I told you so" contrarian share card — Priority 1, Week 1
@@ -97,42 +146,20 @@ Three-condition check on page load (after matches fetch):
 3. Winner cookie + no unlocked matches today → hide prompt
 4. wcp_picked_date cookie matches today → hide prompt (already submitted today)
 
-`wcp_picked_date` cookie set on successful submit, 1-day expiry. Clears naturally overnight so next matchday prompt reappears.
+`wcp_picked_date` cookie set on successful submit, 1-day expiry.
 
 ### 1.4 Match Locking
 **Status:** ✅ Implemented
-- Layer 1: Supabase pg_cron job "lock-kickoffs" runs every minute, flips locked=true when kickoff_at <= now()
-- Layer 2: api/submit.js checks both match.locked AND kickoff_at <= now() as fallback
+- Layer 1: Supabase pg_cron job "lock-kickoffs" runs every minute
+- Layer 2: api/submit.js checks both match.locked AND kickoff_at <= now()
 - Layer 3: Frontend greyed-out .locked CSS class
 
 ### 1.5 Bot Protection Stack
 **Status:** ✅ Fully implemented
-
-#### Layer 1 — Cloudflare Turnstile ✅
-- Site key: 0x4AAAAAADeJ5i3tyWn9PQjn
-- Widget in index.html, server-side siteverify in api/submit.js
-- Only works on worldcupmap.io (not wcpredict-zeta.vercel.app by design)
-- TURNSTILE_SECRET_KEY set in Vercel env vars
-
-#### Layer 2 — IP Rate Limiting ✅ (partial)
-- IP hashing + duplicate check per match per IP in api/submit.js
-- Global rate limiting table NOT built yet
-
-#### Layer 3 — CF-IPCountry Location Detection ✅
-- CF-IPCountry header read and stored as cf_country
-- country_override = true when CF country ≠ declared nation
-- flagged = true on mismatch — review only, don't block
-
-#### Layer 4 — FingerprintJS ✅
-- FingerprintJS v4 loaded in index.html
-- visitorId hashed SHA-256 server-side, stored as fingerprint_hash
-
-#### Layer 5 — AI Moderation Pipeline ❌ Not built
-- moderation_flags table exists
-- Edge Function not built
-- Build post-launch if spam becomes a problem
-
-**Vote integrity note:** With no accounts, determined manipulation is possible. Mitigations are in place (Turnstile, IP deduplication, fingerprint, CF-IPCountry). Present all figures as "fan sentiment" not a scientific poll. Monitor for sudden implausible country spikes via the flagged submissions query.
+- Cloudflare Turnstile (site key: 0x4AAAAAADeJ5i3tyWn9PQjn) — only on worldcupmap.io
+- IP hashing + duplicate check per match per IP
+- CF-IPCountry stored, country_override flagged (review only, don't block)
+- FingerprintJS v4 — hashed SHA-256 server-side
 
 ---
 
@@ -141,44 +168,51 @@ Three-condition check on page load (after matches fetch):
 ### 2.1 World Map
 **Status:** ✅ Complete
 - D3 geoNaturalEarth1 projection
-- Scale: width/6.3, translate: [width/2, height/2.1] (shifted up after Antarctica removal)
-- Antarctica filtered from features before render
-- Zoom: scaleExtent [1,8], translateExtent [[0,0],[width,height]]
-- Double-click resets zoom
-- Zoom control buttons: +, ⌂, −
+- Scale: width/6.3, translate: [width/2, height/2.1]
+- Antarctica filtered, zoom scaleExtent [1,8]
+- Double-click resets zoom, zoom control buttons
 
 ### 2.2 Country Name Mapping
 **Status:** ✅ Fully audited
-COUNTRY_NAME_TO_ISO covers all D3 world-atlas v2 name variants. Key resolved mismatches:
-- 'Dem. Rep. Congo' → 'CD'
-- 'Dominican Rep.' → 'DO'
-- 'eSwatini' → 'SZ' (also mapped 'Swaziland')
-- 'Solomon Is.' → 'SB'
-- 'Guinea-Bissau' → 'GW'
-- 'Palestine' → 'PS'
-- Disputed/unrecognised territories → null (render as dark, not selectable)
+All D3 world-atlas v2 name variants resolved. Key mappings:
+- 'Dem. Rep. Congo' → 'CD', 'Dominican Rep.' → 'DO'
+- 'eSwatini' → 'SZ', 'Solomon Is.' → 'SB'
+- 'Guinea-Bissau' → 'GW', 'Palestine' → 'PS'
 
-### 2.3 UK Tooltip
-**Status:** ✅ Complete
-- UK blob triggers special tooltip showing all 4 nations
-- resolveUKColor() aggregates picks from GB-ENG, GB-SCT, GB-WLS, GB-NIR
-- Matchday view uses England as proxy for UK blob colour
-
-### 2.4 Team Colours
+### 2.3 Team Colours
 **Status:** ✅ Complete — all 48 teams
-Key colour decisions:
-- Brazil: #639922 (flag green, not kit yellow)
-- England: #EFEFEF (off-white, visible on dark map)
-- Germany: #888780 (grey, avoids England clash)
-- USA: #1B2A4A (navy, home kit is white so navy used for map visibility)
-- Argentina: #75AADB (sky blue, not turquoise)
-- Sweden/Ukraine: flag blue (not yellow, avoids South America cluster clash)
+Key: Brazil #639922, England #EFEFEF, Germany #888780, USA #1B2A4A, Argentina #75AADB
 
-### 2.5 Tooltip
+### 2.4 Tooltip
 **Status:** ✅ Complete
-- Shows top picks with percentage bars
-- Vote count shown alongside percentage in muted smaller text: e.g. "42% (7)"
+- Vote count shown alongside percentage: "42% (7)"
 - UK tooltip shows all 4 nations separately
+
+### 2.5 Live Activity Dot Map
+**Status:** ✅ Built — raw WebGL canvas overlay
+Inspired by the MW2/Halo live player population map. Glowing dots appear at population-weighted locations within each country, accumulating into bright clusters around cities through additive blending.
+
+**Architecture:**
+- `cities.js` — 11,000+ population-weighted gaussian scatter points across 52 countries
+- Raw WebGL (no library) — single draw call renders all dots via `gl.POINTS`
+- Additive blending (`gl.SRC_ALPHA, gl.ONE`) — overlapping dots sum to brightness
+- Fragment shader soft radial glow via `gl_PointCoord + smoothstep`
+- All dots pre-projected using D3 projection, stored in GPU buffer (`Float32Array`)
+- D3 zoom transform passed as shader uniforms (uTx, uTy, uK) — dots stay locked to map
+- `gl_PointSize` constant in pixels — dots don't scale with zoom level
+- On-load: paginated fetch of all predictions, 2 dots drawn per prediction
+- 60-second polling via `pollNewPulses()` for new submissions
+- User's own submission fires immediate dots after submit
+
+**Privacy:** Uses only country ISO2 code (public aggregate data) and team pick (public). Dot positions are population-model estimates, not user location.
+
+**Key functions:**
+- `initWebGL(width, height)` — sets up GL context, compiles shaders, enables additive blend
+- `uploadDotBuffers()` — projects all dotPoints to pixel coords, uploads to GPU
+- `redrawDots()` — single GL draw call, called on every zoom/pan event
+- `firePulse(iso2, teamName)` — adds dot to dotPoints array
+- `loadRecentPulses()` — paginated fetch of all predictions, builds dotPoints, uploads + renders
+- `pollNewPulses()` — fetches new predictions since lastPulseTimestamp
 
 ---
 
@@ -186,120 +220,75 @@ Key colour decisions:
 
 ### 3.1 Admin Result Entry
 **Status:** Using Supabase SQL editor
-After each match:
 ```sql
-insert into match_results (match_id, winner, home_score, away_score)
-values ('match-uuid-here', 'Brazil', 2, 0);
-```
+-- Find match UUID
+select id, home_team, away_team from matches
+where kickoff_at::date = '2026-06-11' order by kickoff_at;
 
-To find UUIDs for today's matches:
-```sql
-select id, home_team, away_team, kickoff_at
-from matches
-where kickoff_at::date = '2026-06-11'
-order by kickoff_at;
+-- Enter result
+insert into match_results (match_id, winner, home_score, away_score)
+values ('uuid-here', 'Brazil', 2, 0);
+-- Scoring trigger fires automatically
 ```
 
 ### 3.2 Scoring Trigger
 **Status:** ✅ Installed
-Trigger `on_result_insert` on match_results fires automatically on insert, scoring all predictions for that match_id. Score = 1 if correct, 0 if wrong.
-
-### 3.3 Real-World Tournament Results Integration (Post-Launch)
-When a team is eliminated, this is a high-emotion moment that should trigger automatic behaviour on the site:
-- The eliminated team's supporters need a prompt to re-pick their tournament winner
-- The map should visually reflect the sentiment shift
-- The storyline engine (Section 9) should detect and surface the narrative ("After France's exit, 60% of their backers switched to Brazil")
-- Implementation: add an `eliminated_at` column to a `teams` table, populated manually after each knockout match. Frontend checks this and prompts re-pick if the user's tournament pick has been eliminated.
+Trigger `on_result_insert` on match_results fires on insert, scores all predictions for that match_id.
 
 ---
 
 ## Section 4 — Social & Distribution Strategy
 
-### 4.1 OG Image / Meta Tags
-**Status:** ✅ Complete
-- og-image.png: 1200×630, 108KB, full-frame colourful map with randomised country colours
-- All og: and twitter: meta tags in index.html
-- URLs point to worldcupmap.io
+### 4.1 OG Image
+**Status:** ✅ Complete — 1200×630, 108KB, full-frame map with randomised country colours
 
 ### 4.2 Primary Distribution Channels
+- **WhatsApp** — primary, especially Africa. OG image must stay under 250KB.
+- **Reddit** — r/soccer (8.6M), r/worldcup, r/FIFAWC. Post as interesting datapoint in match threads.
+- **Twitter/X** — real-time "map just flipped" moments. #WorldCup2026 #WorldCupMap
 
-**WhatsApp — primary channel, especially Africa**
-WhatsApp dominates in Nigeria, Kenya, South Africa, Ghana (Egypt is the Facebook exception).
-- OG image must stay under 250KB or WhatsApp silently drops the preview for 7 days
-- WhatsApp share button on the share card (green, prominent)
-- Shares travel through groups and Status — high trust, high click-through
-- Portrait 9:16 card fills WhatsApp Status natively
-
-**Reddit — second channel for initial spike**
-- r/soccer (8.6M members), r/worldcup, r/FIFAWC
-- Post the interesting datapoint as an image in match threads, not bare promo links
-- Best moment: map screenshot in opening match thread
-
-**Twitter/X — real-time moments**
-- Best for "the map just flipped" after big upsets and storyline moments
-- Hashtags: #WorldCup2026 #WorldCupMap
-
-### 4.3 Launch Distribution Plan
-
-**June 8-9:** Soft launch to friends/WhatsApp for initial data seeding
-
-**June 11 (opening match — Mexico vs South Africa, 19:00 UTC):**
+### 4.3 Launch Plan (June 11 — opening match Mexico vs South Africa, 19:00 UTC)
 1. Comment in r/soccer opening match thread with map screenshot
 2. Post standalone thread on r/soccer
 3. Post on r/worldcup and r/FIFAWC
-4. Tweet/X with map screenshot + #WorldCup2026 #WorldCupMap
+4. Tweet/X with map screenshot
 5. WhatsApp share to personal network
 
-**Reddit post title:**
-"I built a live world map showing which team every country thinks will win the World Cup"
+**Reddit post title:** "I built a live world map showing which team every country thinks will win the World Cup"
 
-**Reddit post body:**
-"With the tournament starting today I wanted to see something I couldn't find anywhere: a live map showing who fans from every country actually think will win — not betting odds, not AI predictions, just real people picking their winner.
-
-So I built it. You pick your tournament winner and predict individual match results. Your picks get added to your country's total and the map updates in real time.
-
-There's also a leaderboard tracking which nations are most accurate at predicting match results throughout the tournament.
-
-No account needed. No ads. No tracking: worldcupmap.io"
-
-### 4.4 Monetisation Decision
-**Decision: no ads for the duration of the tournament.**
-Rationale: privacy-first, ad-free positioning is a genuine viral differentiator. Revisit post-July 19.
+### 4.4 Monetisation
+No ads during tournament. Privacy-first positioning is a genuine viral differentiator. Revisit post-July 19.
 
 ### 4.5 Privacy Positioning
-**"No accounts. No ads. No trackers."** — visible on the page.
-Trust is a sharing prerequisite. People share things they're comfortable putting their name behind.
+"No accounts. No ads. No trackers." — visible in header.
+About section note to add: *"Dot positions on the map are approximate, based on population distribution within your country — not your precise location."*
 
 ---
 
 ## Section 5 — Technical Infrastructure
 
-### 5.1 Environment Variables (all set in Vercel)
-- `SUPABASE_URL` ✅
-- `SUPABASE_ANON_KEY` ✅
-- `SUPABASE_SERVICE_KEY` ✅
-- `TURNSTILE_SECRET_KEY` ✅
+### 5.1 Environment Variables (Vercel)
+- `SUPABASE_URL` ✅, `SUPABASE_ANON_KEY` ✅, `SUPABASE_SERVICE_KEY` ✅, `TURNSTILE_SECRET_KEY` ✅
 
 ### 5.2 Cache Busting
-app.js currently loaded as `app.js?v=15`. Increment v= after every deploy.
+app.js currently at `app.js?v=49`. Increment after every deploy.
 
 ### 5.3 DNS & Proxy
-- Cloudflare proxy (orange cloud) active on both worldcupmap.io and www CNAMEs — keep it on
-- Vercel shows "Proxy Detected" warning — ignore it, Cloudflare protection is preferable
+- Cloudflare proxy (orange cloud) on both worldcupmap.io and www CNAMEs — keep it on
+- Vercel "Proxy Detected" warning is noise — ignore it
 - www → worldcupmap.io 308 redirect working
 
-### 5.4 Supabase Free Tier Limits
-- 500MB Postgres storage cap
-- 5GB egress/month
-- Project pauses after 7 days inactivity — set up GitHub Actions keep-alive cron
-- If approaching limits: archive raw prediction rows to Supabase Storage as CSV, keep only aggregates
+### 5.4 Supabase Free Tier
+- 500MB Postgres, 5GB egress/month
+- Keep-alive: GitHub Actions cron daily at 08:00 UTC (confirmed working)
+- rounds table: RLS enabled, `grant select on rounds to anon` applied
+- If approaching limits: archive raw prediction rows to Supabase Storage as CSV
 
-### 5.5 Known Edge Cases
+### 5.5 Known Issues
 - Turnstile rejects submissions from wcpredict-zeta.vercel.app (by design)
-- Flag emoji doesn't render on Windows canvas — Twemoji PNG assets used instead
+- Flag emoji doesn't render on Windows canvas — Twemoji PNG assets used in share card
 - UK subdivision flags (GB-ENG etc.) show GB flag in share card — accepted limitation
-- Brazil/Colombia/Ecuador colour clash on map — accepted limitation
-- eSwatini shown as "eSwatini" by D3 — cosmetic, not worth fixing
+- Germany colour (#888780) washes to white in WebGL additive blend — accepted
 
 ---
 
@@ -307,57 +296,61 @@ app.js currently loaded as `app.js?v=15`. Increment v= after every deploy.
 
 ### 6.1 Current Implementation
 **Status:** ✅ Built (client-side canvas, post-submit modal)
-- 1080×1920 portrait canvas (WhatsApp Status / Instagram Stories native format)
-- Modal pop-up appears immediately after successful submission
-- Twemoji PNG flag images loaded via CDN (cross-platform, works on Windows)
-- Personal framing: "I'm backing X" not "Country backs X"
-- Three automatic copy variants based on data:
-  - **Consensus:** user's pick matches national majority — shows national % + "of [Country] agrees"
-  - **Contrarian:** user's pick differs from majority AND is <35% of their country — "I'm going against the grain 🔥"
-  - **Home side:** user backs their own nation — "I'm backing the home side 🏠"
-- Web Share API (native share sheet on mobile) with download fallback for desktop
-- Team colour contrast check — muted colours (e.g. Germany grey) fall back to white text + blue accent
-- JPEG export at quality 0.85, ~300-500KB
+- 1080×1920 portrait canvas (WhatsApp Status / Instagram Stories native)
+- Modal appears after successful submission
+- Twemoji PNG flags via CDN (cross-platform, works on Windows)
+- Personal framing: "I'm backing X"
+- Three automatic variants:
+  - **Consensus:** pick matches national majority — "X% of [Country] agrees"
+  - **Contrarian:** pick differs from majority AND <35% — "I'm going against the grain 🔥"
+  - **Home side:** user backs their own nation
+- Accuracy rank badge: 🥇🥈🥉 for top 3, rank for top 10
+- Rivalry hook copy (first person, inclusive "us" language):
+  - #1: "Think anyone can top us? 👀"
+  - Top 3: "We're coming for #1. Can anyone stop us?"
+  - Top 10: "We're in the hunt. Can anyone catch us?"
+  - Others: "Think your nation knows better? Prove it."
+- Web Share API (native share sheet) with download fallback
+- JPEG export at quality 0.85
 
-### 6.2 Next Additions to Share Card
-
-**Accuracy rank badge (immediate — next task):**
-Add the nation's current accuracy rank to the card. This turns every share into a competitive statement.
-- "🏆 Nigeria: #3 most accurate nation on the map"
-- Only show once enough scored predictions exist (matchday 3+)
-- Position: below the percentage, above the global hook line
-
-**Matchday prediction card variant (Week 1):**
-A separate card for match predictions, designed for pre-match Stories posting.
-- Shows: user's pick for today's match, their nation's collective pick for that match, nation's current accuracy rank
-- Posted before kickoff ("I'm backing Brazil tonight — Nigeria calls it too")
-- Revisited after the result with outcome added
-
-**Nation rivalry card (R32, June 28):**
-Head-to-head comparison card between two nations.
-- Triggered by: user's nation vs an opponent in the knockout rounds
-- Shows: each nation's tournament pick, accuracy rank, and match prediction
-- Copy: "🇳🇬 Nigeria vs 🇩🇪 Germany — who knows their football?"
+### 6.2 Next Share Card Features
+- "I told you so" contrarian share card — Priority 1, Week 1
+- Matchday prediction card variant — Week 1
+- Nation rivalry card — R32, June 28
+- Personal accuracy Wrapped card — SF/Final
 
 ### 6.3 Share Card Copy Philosophy
-The card must feel like the **user is speaking**, not the data reporting. The user is always the hero.
-- Lead with identity (flag + "I'm backing X")
-- Support with community (national %)
-- Close with competition (accuracy rank or global hook)
-- Invite response ("Think your nation knows better?")
-
-The contrarian framing is hypothesised to be more viral than consensus — it's a bolder identity claim and invites debate. Monitor share rates once real data flows.
+User is the hero. Lead with identity → support with community → close with competition.
 
 ---
 
 ## Section 7 — Round-Based Tournament Winner Tracker
 
 ### 7.1 Concept
-At the start of each new round, users re-pick their tournament winner. Track how global sentiment shifts round by round as teams are eliminated.
+Users re-pick tournament winner at start of each round. Track global sentiment shift.
 
-**The data story:** "After Argentina's exit in the QF, South American support shifted to Brazil." This grows more compelling with every round.
+### 7.2 Architecture — Append-Only
+```sql
+-- predictions table has round column (default 'group_stage')
+alter table predictions add column round text default 'group_stage';
 
-**Rounds (6 windows):**
+-- rounds management table
+create table rounds (
+  id serial primary key,
+  round text not null unique,
+  opens_at timestamptz not null,
+  is_current boolean default false
+);
+-- RLS enabled, grant select on rounds to anon;
+```
+
+**To open a new round:**
+```sql
+update rounds set is_current = false;
+update rounds set is_current = true where round = 'round_of_32';
+```
+
+### 7.3 Rounds Schedule
 | Round | Opens |
 |-------|-------|
 | group_stage | June 11 (launch) |
@@ -367,44 +360,10 @@ At the start of each new round, users re-pick their tournament winner. Track how
 | semi_final | July 15 |
 | final | July 19 |
 
-### 7.2 Architecture — Append-Only Model
-Never delete or mutate prior rounds. The `round` column is the versioning mechanism.
-
-```sql
-alter table predictions add column round text default 'group_stage';
-create index on predictions(round);
-
-create table rounds (
-  id serial primary key,
-  round text not null unique,
-  opens_at timestamptz not null,
-  is_current boolean default false
-);
-
-insert into rounds (round, opens_at, is_current) values
-  ('group_stage',  '2026-06-11 19:00:00+00', true),
-  ('round_of_32',  '2026-06-28 00:00:00+00', false),
-  ('round_of_16',  '2026-07-05 00:00:00+00', false),
-  ('quarter_final','2026-07-11 00:00:00+00', false),
-  ('semi_final',   '2026-07-15 00:00:00+00', false),
-  ('final',        '2026-07-19 00:00:00+00', false);
-```
-
-To open a new round:
-```sql
-update rounds set is_current = false;
-update rounds set is_current = true where round = 'round_of_32';
-```
-
-### 7.3 Cookie Behaviour
-- When a new round opens, clear `wcp_tournament_winner` cookie so users re-pick
-- New round detection: compare current round from API against `wcp_round` cookie
-- If different, clear winner cookie and prompt re-pick with a banner
-
-### 7.4 UI Changes Needed
-- Round selector on the map — "Viewing: Group Stage ▾" to replay history
-- "How the world changed its mind" animated transition between rounds
-- Banner when new round opens: "The Round of 32 is set — re-pick your World Cup winner"
+### 7.4 Cookie Behaviour
+- `wcp_round` cookie stores current round
+- On page load: if stored round ≠ current round → clear `wcp_tournament_winner` cookie → show re-pick banner
+- Banner: "🏆 The Round of 32 is set — re-pick your World Cup winner" + "Pick now" button
 
 ---
 
@@ -412,165 +371,70 @@ update rounds set is_current = true where round = 'round_of_32';
 
 ### 8.1 Personal Stats Panel
 **Status:** ✅ Built — /api/stats.js
-- Fingerprint-based identification — browser-tied, no account needed
-- Shown after minimum 3 scored predictions
-- Top stats row: correct/total predictions, global percentile, national percentile
-- Round-by-round history panel below the stats row showing for each round:
-  - Which round (Group Stage, Round of 32, etc.)
-  - Tournament winner pick that round (in team colour)
-  - Match prediction accuracy that round (X/Y correct)
-- Only rounds the user actually submitted in are shown
-- Framed honestly: tied to this browser/device — works for the vast majority who don't clear cookies during the tournament
-- Enables the end-of-tournament Wrapped card narrative: "I backed Brazil from day one and switched after the QF"
+- Fingerprint-based identification (browser-tied, no account needed)
+- Shown after minimum 3 scored predictions (history shown from first submission)
+- Top stats row: correct/total, global percentile, national percentile
+- "My World Cup Journey" — round-by-round history:
+  - Round label (collapsible, current open)
+  - My World Cup champion pick in team colour
+  - Match chips: green (correct) / red (wrong) — only scored matches shown
+  - Per-round percentile: "Top X% globally this round / in your country"
+  - Perfect round: gold border + "⭐ Perfect round" badge
+  - Streak badge: "🔥 N in a row" when N ≥ 3
 
-**Identity note:** This is the personal parallel to the nation-level accuracy leaderboard. Users can see their own journey through the tournament — which teams they backed, how their predictions held up round by round — without ever needing an account.
-
-### 8.2 End-of-Tournament Share Card
-Spotify Wrapped-style personal summary at tournament end:
-- "You backed Brazil from Day 1 and were right when 71% doubted them"
-- "You correctly predicted X/Y matches — top Z% globally"
-- Round history woven into the narrative: "You switched to France in the QF — called it"
-- Canvas-generated, one-tap share to WhatsApp/Twitter
-- Data source: the round-by-round history already stored in /api/stats.js response
+### 8.2 End-of-Tournament Share Card (post-launch)
+Spotify Wrapped-style: "You backed Brazil from Day 1 and were right when 71% doubted them."
 
 ---
 
-## Section 9 — Storyline Engine
+## Section 9 — Storyline Engine (Post-Launch)
 
 ### 9.1 Concept
-The most important retention and virality feature. After every matchday, the system automatically identifies the best shareable narrative from the data and surfaces it on the site and in share cards.
+After every matchday, auto-identify the best shareable narrative from the data.
 
-**The goal:** every matchday has a story. Every story has a share card. Every share card brings people back.
+### 9.2 Categories
+- **Accuracy:** perfect matchday, leaderboard overtake, streak, upset caller
+- **Pick:** lone believer, regional unity, sentiment collapse
+- **Rivalry:** direct rivalry, match preview, revenge
+- **Real-world:** elimination trigger, upset aftermath
 
-### 9.2 Storyline Categories
+### 9.3 Implementation Phases
+- **Phase 1 (manual, matchday 1-2):** Enter result → manually identify best story → post
+- **Phase 2 (automated, matchday 3+):** SQL detection queries → `storylines` table → featured banner
+- **Phase 3:** Feed relevant nation storyline into share card
 
-**Accuracy storylines (most shareable — triggers national pride):**
-- Perfect matchday: "🇳🇬 Nigeria called every result correctly today"
-- Leaderboard overtake: "🇧🇷 Brazil just overtook 🇩🇪 Germany in the accuracy table"
-- Streak: "🇬🇭 Ghana have been #1 for 3 matchdays in a row"
-- Collapse: "🇫🇷 France had the worst matchday of the tournament — from #2 to #7"
-- Upset caller: "🇯🇵 Japan were the only nation that backed Morocco to beat Spain"
-
-**Pick storylines (drives map interest):**
-- Lone believer: "🇫🇷 France is the only nation still backing themselves"
-- Regional unity: "Every African nation on the map backs the same team 🌍"
-- Sentiment collapse: "After today's result, Argentina lost 40% of their global support"
-- Contrarian nation: "🇬🇭 Ghana is the only African nation not backing an African team"
-
-**Rivalry storylines (nation vs nation — most emotionally charged):**
-- Direct rivalry: "🇳🇬 Nigeria leads 🇬🇭 Ghana by 2 points in the accuracy table"
-- Match preview: "Tonight: 🇳🇬 Nigeria vs 🇩🇪 Germany — their fans disagree on the winner"
-- Revenge: "🇦🇷 Argentina fans called Ghana wrong yesterday — Ghana fans return the favour tonight"
-
-**Real-world results storylines (highest emotion, drives immediate sharing):**
-- Elimination trigger: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 England are out. 67% of England fans backed them — time to re-pick"
-- Upset aftermath: "The world didn't see that coming. Only 3% backed Morocco here"
-- Giant killer: "🇲🇦 Morocco just became the map's most backed African team"
-
-### 9.3 Implementation Architecture
-
-**Phase 1 — Manual (launch through matchday 3):**
-After entering each match result in the SQL editor, manually identify the best story and post it. This tells you what stories actually exist before automating.
-
-**Phase 2 — Storyline detection queries (matchday 3+):**
-A set of SQL queries run after each result is entered. Each query scores a candidate story. The highest score wins and is written to a `storylines` table.
-
-```sql
--- Example: detect perfect matchday by nation
-select 
-  p.nation_iso2,
-  count(*) as total_picks,
-  sum(p.score) as correct,
-  md.matchday_date
-from predictions p
-join matches m on p.match_id = m.id
-join (select date_trunc('day', kickoff_at) as matchday_date, max(kickoff_at) as last_kickoff
-      from matches where locked = true group by 1) md 
-  on date_trunc('day', m.kickoff_at) = md.matchday_date
-where p.score is not null
-group by p.nation_iso2, md.matchday_date
-having sum(p.score) = count(*) and count(*) >= 3
-order by count(*) desc;
-```
-
-**Storylines table:**
+### 9.4 Storylines Table
 ```sql
 create table storylines (
   id serial primary key,
-  type text not null,          -- 'perfect_matchday', 'overtake', 'lone_believer', etc.
-  headline text not null,      -- "🇳🇬 Nigeria called every result correctly today"
-  nation_iso2 text,            -- primary nation (for filtering on share card)
-  nation_iso2_b text,          -- secondary nation (for rivalry storylines)
+  type text not null,
+  headline text not null,
+  nation_iso2 text,
+  nation_iso2_b text,
   round text,
   matchday_date date,
-  score integer default 0,     -- interestingness score
+  score integer default 0,
   is_featured boolean default false,
   created_at timestamptz default now()
 );
 ```
 
-**Phase 3 — Frontend integration:**
-- Featured storyline banner appears above the leaderboard on matchdays
-- Share card pulls the most relevant storyline for the user's nation
-- If user's nation has a storyline (e.g. Nigeria perfect matchday), their card carries it as a badge
-- If no nation-specific storyline, fall back to the global featured story
-
-### 9.4 Storyline Scoring Rules
-Higher score = more likely to be featured:
-
-| Story type | Base score | Multipliers |
-|-----------|------------|-------------|
-| Perfect matchday | 80 | +20 if nation is in top 5 accuracy, +10 per match in the day |
-| Leaderboard overtake | 70 | +20 if top 3 involved |
-| Lone believer | 65 | +30 if team wins the match |
-| Elimination sentiment shift | 90 | Always high — real tournament event |
-| Regional unity/division | 60 | |
-| Streak (#1 for N days) | 50 + N*10 | |
-| Upset caller (only nation) | 75 | |
-| Rivalry (points gap narrows) | 55 | |
-
-### 9.5 Real-World Results Integration
-The storyline engine must be aware of real tournament results, not just prediction accuracy.
-- Add `wc_result` column to matches: 'home_win' | 'draw' | 'away_win' | null
-- This is the actual result (not predictions) — populated when entering match_results
-- Storylines can then cross-reference: who picked the upset, which nation's pick got eliminated, etc.
-- Eliminated teams trigger a forced re-pick prompt — highest urgency storyline type
-
 ---
 
-## Section 10 — Nation vs Nation Rivalry System
+## Section 10 — Nation vs Nation Rivalry System (Post-Launch)
 
-### 10.1 Concept
-Football is tribal. The accuracy leaderboard already creates implicit rivalry — this section makes it explicit and shareable.
-
-**The core mechanic:** nations compete to be the most accurate football nation on the map. When a nation moves up or down the leaderboard, that's a shareable moment. When two nations are separated by one correct call, that's a rivalry.
+### 10.1 Accuracy Leaderboard as Bragging Rights
+- Show movement arrows (↑↓) after each matchday
+- "Your nation moved up X places after today's results"
+- End-of-round summary shareable moment
 
 ### 10.2 Rivalry Card (R32, June 28)
-A head-to-head comparison card between two nations, auto-generated for knockout matches.
+Head-to-head card: Nation A (flag, accuracy rank, tournament pick) vs Nation B.
+Copy: "Who knows their football?" CTA: "Settle it at worldcupmap.io"
 
-Layout:
-- Left column: Nation A (user's nation) — flag, accuracy rank, tournament pick, match prediction
-- Right column: Nation B (opponent) — same
-- Centre: "Who knows their football?"
-- CTA: "Settle it at worldcupmap.io"
-
-Triggered automatically when:
-- A knockout match involves a team from the user's nation's region
-- The user's nation and a rival nation have picks for the same match
-- Manually surfaced as a featured storyline
-
-### 10.3 Accuracy Leaderboard as Bragging Rights
-The accuracy leaderboard needs to feel like a live league table, not a static list.
-- Show movement arrows (↑↓) on the leaderboard
-- "Your nation moved up X places after today's results"
-- After each matchday, the leaderboard update is itself a shareable moment
-- End-of-round summary: "Group Stage standings — which nation knows their football?"
-
-### 10.4 Share Card Integration
-Every share card should carry the nation's accuracy rank once sufficient data exists (matchday 3+):
-- Top 3: "🏆 Nigeria — #1 most accurate nation on the map"
-- Top 10: "🇳🇬 Nigeria — #6 globally"
-- Dropped: "🇩🇪 Germany — fell to #8 today"
+### 10.3 Share Card Integration
+- Top 3: "🥇 Nigeria — #1 most accurate nation on the map"
+- Top 10: "#6 globally"
 - No data yet: omit rank line entirely
 
 ---
@@ -578,151 +442,114 @@ Every share card should carry the nation's accuracy rank once sufficient data ex
 ## Tournament Operations Checklist
 
 ### Before each matchday
-- [ ] Verify today's matches show correctly on the site
-- [ ] Check Vercel logs for any errors
+- [ ] Verify today's matches show correctly
+- [ ] Check Vercel logs for errors
 - [ ] Check prediction count is incrementing
 
 ### After each match
 ```sql
--- 1. Find the match UUID
-select id, home_team, away_team from matches 
-where home_team = 'Brazil' and away_team = 'Morocco';
-
--- 2. Enter the result
+select id, home_team, away_team from matches where home_team = 'Brazil';
 insert into match_results (match_id, winner, home_score, away_score)
 values ('uuid-here', 'Brazil', 2, 0);
--- Scoring trigger fires automatically
-
--- 3. Run storyline detection queries (Phase 2 onwards)
--- 4. Manually review and feature the best story
+-- Trigger fires automatically
 ```
 
-### After each matchday (full day complete)
-- [ ] Review accuracy leaderboard for movement
-- [ ] Identify best storyline from the day
-- [ ] Post featured story to Reddit/Twitter/WhatsApp
-- [ ] Check for any flagged submissions spike
+### After each matchday
+- [ ] Review accuracy leaderboard movement
+- [ ] Identify best storyline, post to Reddit/Twitter/WhatsApp
+- [ ] Check flagged submissions spike
 
 ### At each round transition
 ```sql
 update rounds set is_current = false;
 update rounds set is_current = true where round = 'round_of_32';
 ```
-- Clear `wcp_tournament_winner` via frontend round-change logic
-- Post "re-pick your winner" prompt across all channels
-- Publish round summary storyline ("Group Stage: which nation called it best?")
+Then post "re-pick your winner" across channels.
 
 ### Monitoring queries
 ```sql
 -- Flagged submissions
 select * from predictions where flagged = true order by created_at desc limit 20;
 
--- Prediction counts by country
-select nation_iso2, count(*) from predictions 
+-- Counts by country
+select nation_iso2, count(*) from predictions
 group by nation_iso2 order by count desc limit 20;
 
--- Total count
-select count(*) from predictions;
-
--- Implausible country spikes
-select nation_iso2, count(*), 
-  count(*) filter (where created_at > now() - interval '1 hour') as last_hour
-from predictions 
-group by nation_iso2 
+-- Implausible spikes
+select nation_iso2, count(*) filter (where created_at > now() - interval '1 hour') as last_hour
+from predictions group by nation_iso2
 having count(*) filter (where created_at > now() - interval '1 hour') > 50
 order by last_hour desc;
 
 -- Accuracy leaderboard
-select nation_iso2, 
+select nation_iso2,
   sum(score) as correct,
   count(*) filter (where score is not null) as total,
   round(sum(score)::numeric / nullif(count(*) filter (where score is not null), 0) * 100) as pct
-from predictions
-where score is not null
+from predictions where score is not null
 group by nation_iso2
 having count(*) filter (where score is not null) >= 5
-order by pct desc, correct desc
-limit 20;
+order by pct desc, correct desc limit 20;
 ```
 
 ### Decision thresholds
-- DB approaching 500MB → archive raw rows to Supabase Storage, keep aggregates only
-- Egress approaching 5GB/month → lean harder on Cloudflare CDN caching
-- WhatsApp previews failing → check image size (<250KB), check Cloudflare isn't blocking WhatsApp crawler UA
-- Single country spiking implausibly → tighten rate limiting, flag for review, relabel as "sentiment"
+- DB approaching 500MB → archive raw rows to Supabase Storage
+- Egress approaching 5GB → lean harder on Cloudflare CDN caching
+- WhatsApp previews failing → check image size (<250KB), check Cloudflare UA whitelist
+- Country spiking implausibly → tighten rate limiting, relabel as "sentiment"
 
 ---
 
 ## Post-Launch Feature Roadmap
 
 ### ✅ Completed pre-launch
-- Accuracy rank badge on share card (medal system, gold/silver/bronze for top 3)
-- Share card modal — personal framing, Twemoji flags, consensus/contrarian/home-side variants, rivalry hook copy
-- Round-based tournament winner tracker — DB schema, round stamping, re-pick detection, banner
-- Personal stats panel — "My World Cup Journey" with match chips, perfect round gold treatment, streak badge, per-round percentiles, collapsible rounds
-- Supabase keep-alive GitHub Actions cron (daily ping at 08:00 UTC)
-- Privacy statement visible in header
+- Share card modal — personal framing, Twemoji flags, accuracy rank, rivalry copy
+- Round-based tournament winner tracker
+- Personal stats panel with full journey history
+- Supabase keep-alive GitHub Actions cron
+- Privacy statement in header
+- Live activity WebGL dot map
 - Clean database — no test data
 
-### Week 1 — After first matchday results (June 11-18)
+### Week 1 (June 11-18)
 
 **Priority 1 — "I told you so" contrarian share card**
-After a result comes in, if the user backed the winning team when less than 30% of the world did, they get a special shareable card:
-- Trigger: user's match pick was correct AND global pick % for that team was <30%
-- Card copy: "I called it. Only 28% of the world backed Morocco. 👀"
-- Framing: "Against the odds" badge on the chip in their personal stats
-- Implementation: needs match aggregate pick percentages joined into the stats response — build alongside Priority 2 since they share the same data
-- This is a high-emotion, immediate, very shareable moment — fire it after each result
+After result: if user backed winner when <30% of world did → special card.
+- "I called it. Only 28% of the world backed Morocco. 👀"
+- Needs match aggregate pick % joined into stats response
+- Build alongside Priority 2 (same data needed)
 
 **Priority 2 — Per-match crowd % on hover/tap**
-When a user hovers or taps a match chip in their personal stats panel, show what % of all users picked each outcome:
-- "62% backed Mexico · 28% South Africa · 10% Draw"
-- Data needed: match aggregate picks joined into the stats API response alongside the user's own pick
-- Build at the same time as Priority 1 since both need the same match aggregate data
-- On mobile: tap to reveal, tap again to dismiss
-- On desktop: hover tooltip
+On match chip hover/tap in personal stats: "62% backed Mexico · 28% South Africa · 10% Draw"
 
 **Priority 3 — Storyline engine Phase 2 (matchday 3+)**
-After manually identifying stories in matchdays 1-2, automate detection:
-- Build the SQL detection queries from Section 9.3
-- Write results to the `storylines` table
-- Surface featured story banner above the leaderboard
-- Pull relevant nation storyline into the share card
+SQL detection queries → storylines table → featured banner above leaderboard
 
-**Priority 4 — Matchday prediction share card variant**
-A separate card for match predictions, designed for pre-match Stories posting:
-- Shows: user's pick for today's match, their nation's collective pick, nation's current accuracy rank
-- Posted before kickoff ("I'm backing Brazil tonight — Nigeria calls it too")
-- Revisited after the result with outcome added
+**Priority 4 — Matchday prediction share card**
+Pre-match Stories card: user's match pick + nation's collective pick + accuracy rank
 
 **Priority 5 — Leaderboard movement arrows**
-Show ↑↓ movement on the accuracy leaderboard after each matchday:
-- "Nigeria ↑3" after a good matchday
-- The leaderboard update itself becomes a shareable moment
+Show ↑↓ movement after each matchday
 
 **Priority 6 — Auto-refresh on matchdays**
-Every 5 minutes on days with matches — poll for updated nationData and recolour the map. Only activate on matchdays to save egress.
+5-minute polling on matchdays only
 
-### R32 opening (June 28): rivalry features
-- "How the world changed its mind" map animation — animated transition between group stage and R32 sentiment
-- Nation rivalry card — head-to-head comparison card for knockout matches. Layout: Nation A (flag, accuracy rank, tournament pick, match prediction) vs Nation B. Copy: "Who knows their football?" CTA: "Settle it at worldcupmap.io"
-- Round summary storyline post — "Group Stage: which nation called it best?"
-- Leaderboard movement arrows live
+### R32 (June 28)
+- "How the world changed its mind" map animation
+- Nation rivalry card
+- Round summary storyline
 
-### R16 opening (July 5): contrarian features
-- "Most contrarian nation" auto-highlight — surfaces the most shareable facts: "Ghana is the only African nation not backing an African team"
-- Storyline engine running automatically (Phase 3)
+### R16 (July 5)
+- "Most contrarian nation" auto-highlight
+- Storyline engine automated
 
-### QF opening (July 11): head-to-head
-- Country vs country rivalry card fully live
-- Real-world elimination integration — `eliminated_at` column on teams table, frontend prompts re-pick if user's tournament pick has been eliminated, storyline engine surfaces elimination narratives
+### QF (July 11)
+- Country vs country rivalry card
+- Real-world elimination integration
 
-### SF + Final (July 15-19): personal wrap-up
-- Personal accuracy share card (Wrapped-style) — "You backed Brazil from Day 1 and were right when 71% doubted them. You correctly predicted X/Y matches — top Z% globally." Canvas-generated, one-tap share.
-- End-of-tournament map archive — keep the site live with the final map as a permanent record
+### SF + Final (July 15-19)
+- Personal accuracy Wrapped card
+- End-of-tournament map archive
 
 ### Explicitly out of scope
-- Real-time websockets
-- User accounts or auth
-- Native push notifications
-- AdSense during the tournament
+- Real-time websockets, user accounts, native push notifications, AdSense during tournament
