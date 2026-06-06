@@ -162,6 +162,7 @@ let gl = null
 let glProgram = null
 let glBuffer = null
 let glColorBuffer = null
+let glWeightBuffer = null
 let glPointCount = 0
 let glWidth = 0
 let glHeight = 0
@@ -1210,17 +1211,21 @@ function initWebGL(width, height) {
   const vertSrc = `
     attribute vec2 aPos;
     attribute vec3 aCol;
+    attribute float aWeight;
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
     varying vec3 vCol;
+    varying float vWeight;
     void main() {
       float sx = aPos.x * uK + uTx;
       float sy = aPos.y * uK + uTy;
       float cx = (sx / uW) * 2.0 - 1.0;
       float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = clamp(2.5 + uK * 0.4, 2.5, 6.0);
+      float baseSize = clamp(2.0 + uK * 0.3, 2.0, 5.0);
+      gl_PointSize = baseSize + aWeight * 2.5;
       vCol = aCol;
+      vWeight = aWeight;
     }
   `
 
@@ -1228,9 +1233,10 @@ function initWebGL(width, height) {
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
+    varying float vWeight;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * 0.65;
+      float alpha = smoothstep(0.5, 0.0, d) * (0.35 + vWeight * 0.5);
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1250,6 +1256,7 @@ function initWebGL(width, height) {
 
   glBuffer = gl.createBuffer()
   glColorBuffer = gl.createBuffer()
+  glWeightBuffer = gl.createBuffer()
 
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE) // additive blending — the glow effect
@@ -1304,6 +1311,7 @@ function uploadDotBuffers() {
 
   const validPositions = []
   const validColors = []
+  const validWeights = []
 
   dotPoints.forEach(p => {
     const proj = mapProjection([p.lng, p.lat])
@@ -1322,6 +1330,7 @@ function uploadDotBuffers() {
 
     validPositions.push(proj[0], proj[1])
     validColors.push(p.r, p.g, p.b)
+    validWeights.push(p.w != null ? p.w : 0.5)
   })
 
   if (validPositions.length === 0) return
@@ -1333,6 +1342,8 @@ function uploadDotBuffers() {
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, glColorBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW)
+  gl.bindBuffer(gl.ARRAY_BUFFER, glWeightBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(validWeights), gl.STATIC_DRAW)
   glPointCount = validPositions.length / 2
 }
 
@@ -1354,6 +1365,11 @@ function redrawDots() {
   gl.enableVertexAttribArray(aColLoc)
   gl.vertexAttribPointer(aColLoc, 3, gl.FLOAT, false, 0, 0)
 
+  const aWeightLoc = gl.getAttribLocation(glProgram, 'aWeight')
+  gl.bindBuffer(gl.ARRAY_BUFFER, glWeightBuffer)
+  gl.enableVertexAttribArray(aWeightLoc)
+  gl.vertexAttribPointer(aWeightLoc, 1, gl.FLOAT, false, 0, 0)
+
   // Set uniforms
   const t = currentZoomTransform
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uTx'), t.x)
@@ -1374,8 +1390,9 @@ function firePulse(iso2, teamName, attempt = 0) {
   if (!city) return
   const jitterLng = (Math.random() - 0.5) * 0.08
   const jitterLat = (Math.random() - 0.5) * 0.06
+  const w = city.weight != null ? city.weight : 0.5
   const [r, g, b] = [1.0, 1.0, 1.0]
-  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2 })
+  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2, w })
 }
 
 async function loadRecentPulses() {
