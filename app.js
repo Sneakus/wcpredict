@@ -1308,7 +1308,7 @@ function uploadDotBuffers() {
 
     // Check if dot falls inside its country boundary
     const path = window._countryPaths && window._countryPaths[p.iso2]
-    if (path && !clipCtx.isPointInPath(path, proj[0], proj[1])) return
+    if (path && !clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd')) return
 
     validPositions.push(proj[0], proj[1])
     validColors.push(p.r, p.g, p.b)
