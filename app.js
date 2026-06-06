@@ -1390,8 +1390,8 @@ async function loadRecentPulses() {
     while (true) {
       const { data, error } = await sb
         .from('predictions')
-        .select('nation_iso2, predicted_winner, created_at')
-        .order('created_at', { ascending: true })
+        .select('nation_iso2, predicted_winner, created_at, id')
+        .order('id', { ascending: true })
         .range(from, from + pageSize - 1)
       if (error || !data || data.length === 0) break
       allData = allData.concat(data)
@@ -1426,9 +1426,9 @@ async function pollNewPulses() {
   try {
     const { data, error } = await sb
       .from('predictions')
-      .select('nation_iso2, predicted_winner, created_at')
+      .select('nation_iso2, predicted_winner, created_at, id')
       .gt('created_at', lastPulseTimestamp)
-      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(20)
     if (error || !data || data.length === 0) return
     lastPulseTimestamp = data[data.length - 1].created_at
