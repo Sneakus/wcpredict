@@ -1378,8 +1378,8 @@ function firePulse(iso2, teamName, attempt = 0) {
   }
   const city = getPulseCity(iso2)
   if (!city) return
-  const jitterLng = (Math.random() - 0.5) * 0.08
-  const jitterLat = (Math.random() - 0.5) * 0.06
+  const jitterLng = (Math.random() - 0.5) * 0.18
+  const jitterLat = (Math.random() - 0.5) * 0.14
   const w = city.weight != null ? city.weight : 0.5
   const [r, g, b] = [1.0, 1.0, 1.0]
   dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2, w })
