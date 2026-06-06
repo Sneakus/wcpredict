@@ -1258,22 +1258,72 @@ function initWebGL(width, height) {
 
 function uploadDotBuffers() {
   if (!gl || !glBuffer || dotPoints.length === 0) return
-  const positions = new Float32Array(dotPoints.length * 2)
-  const colors = new Float32Array(dotPoints.length * 3)
-  dotPoints.forEach((p, i) => {
+
+  // Off-screen canvas for isPointInPath boundary checking
+  if (!window._clipCanvas) {
+    window._clipCanvas = document.createElement('canvas')
+    window._clipCanvas.width = glWidth
+    window._clipCanvas.height = glHeight
+    window._clipCtx = window._clipCanvas.getContext('2d')
+  }
+  const clipCtx = window._clipCtx
+
+  // Build a path2D per ISO2 from world features for boundary clipping
+  if (!window._countryPaths) {
+    window._countryPaths = {}
+    if (window._worldFeatures && mapProjection) {
+      const pathGen = d3.geoPath(mapProjection)
+      window._worldFeatures.forEach(f => {
+        const name = f.properties && f.properties.name
+        const iso2 = name && COUNTRY_NAME_TO_ISO[name]
+        if (!iso2) return
+        const svgStr = pathGen(f)
+        if (svgStr) {
+          try {
+            window._countryPaths[iso2] = new Path2D(svgStr)
+          } catch(e) {}
+        }
+      })
+      // Also map UK subdivisions to GB path
+      const gbFeature = window._worldFeatures.find(f =>
+        f.properties && f.properties.name === 'United Kingdom')
+      if (gbFeature) {
+        const gbSvg = pathGen(gbFeature)
+        if (gbSvg) {
+          const gbPath = new Path2D(gbSvg)
+          ;['GB-ENG','GB-SCT','GB-WLS','GB-NIR'].forEach(sub => {
+            window._countryPaths[sub] = gbPath
+          })
+        }
+      }
+    }
+  }
+
+  const validPositions = []
+  const validColors = []
+
+  dotPoints.forEach(p => {
     const proj = mapProjection([p.lng, p.lat])
     if (!proj) return
-    positions[i * 2]     = proj[0]
-    positions[i * 2 + 1] = proj[1]
-    colors[i * 3]     = p.r
-    colors[i * 3 + 1] = p.g
-    colors[i * 3 + 2] = p.b
+
+    // Check if dot falls inside its country boundary
+    const path = window._countryPaths && window._countryPaths[p.iso2]
+    if (path && !clipCtx.isPointInPath(path, proj[0], proj[1])) return
+
+    validPositions.push(proj[0], proj[1])
+    validColors.push(p.r, p.g, p.b)
   })
+
+  if (validPositions.length === 0) return
+
+  const positions = new Float32Array(validPositions)
+  const colors = new Float32Array(validColors)
+
   gl.bindBuffer(gl.ARRAY_BUFFER, glBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
   gl.bindBuffer(gl.ARRAY_BUFFER, glColorBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW)
-  glPointCount = dotPoints.length
+  glPointCount = validPositions.length / 2
 }
 
 function redrawDots() {
@@ -1315,7 +1365,7 @@ function firePulse(iso2, teamName, attempt = 0) {
   const jitterLng = (Math.random() - 0.5) * 1.2
   const jitterLat = (Math.random() - 0.5) * 0.8
   const [r, g, b] = [1.0, 1.0, 1.0]
-  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b })
+  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2 })
 }
 
 async function loadRecentPulses() {
@@ -1402,6 +1452,7 @@ function buildMap() {
     .translate([width / 2, height / 2.1])
   const path = d3.geoPath(projection)
   mapProjection = projection
+  window._countryPaths = null
   // Init WebGL dot canvas
   initWebGL(width, height)
 
