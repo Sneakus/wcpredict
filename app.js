@@ -464,7 +464,7 @@ async function submitPredictions() {
     generateShareCard(iso2)
     const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
     if (userTeam) setTimeout(() => {
-      for (let d = 0; d < 5; d++) firePulse(iso2, userTeam)
+      for (let d = 0; d < 15; d++) firePulse(iso2, userTeam)
       uploadDotBuffers()
       redrawDots()
     }, 500)
@@ -1211,21 +1211,17 @@ function initWebGL(width, height) {
   const vertSrc = `
     attribute vec2 aPos;
     attribute vec3 aCol;
-    attribute float aWeight;
     uniform float uTx, uTy, uK;
     uniform float uW, uH;
     varying vec3 vCol;
-    varying float vWeight;
     void main() {
       float sx = aPos.x * uK + uTx;
       float sy = aPos.y * uK + uTy;
       float cx = (sx / uW) * 2.0 - 1.0;
       float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      float baseSize = clamp(2.0 + uK * 0.3, 2.0, 5.0);
-      gl_PointSize = baseSize + aWeight * 2.5;
+      gl_PointSize = clamp(1.8 + uK * 0.25, 1.8, 4.0);
       vCol = aCol;
-      vWeight = aWeight;
     }
   `
 
@@ -1233,10 +1229,9 @@ function initWebGL(width, height) {
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
-    varying float vWeight;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * (0.35 + vWeight * 0.5);
+      float alpha = smoothstep(0.5, 0.0, d) * 0.6;
       gl_FragColor = vec4(vCol, alpha);
     }
   `
@@ -1365,11 +1360,6 @@ function redrawDots() {
   gl.enableVertexAttribArray(aColLoc)
   gl.vertexAttribPointer(aColLoc, 3, gl.FLOAT, false, 0, 0)
 
-  const aWeightLoc = gl.getAttribLocation(glProgram, 'aWeight')
-  gl.bindBuffer(gl.ARRAY_BUFFER, glWeightBuffer)
-  gl.enableVertexAttribArray(aWeightLoc)
-  gl.vertexAttribPointer(aWeightLoc, 1, gl.FLOAT, false, 0, 0)
-
   // Set uniforms
   const t = currentZoomTransform
   gl.uniform1f(gl.getUniformLocation(glProgram, 'uTx'), t.x)
@@ -1425,7 +1415,7 @@ async function loadRecentPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < 15; d++) {
         firePulse(row.nation_iso2, teamName)
       }
     })
@@ -1453,7 +1443,7 @@ async function pollNewPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < 15; d++) {
         firePulse(row.nation_iso2, teamName)
       }
     })
