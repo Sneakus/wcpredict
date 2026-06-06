@@ -1488,7 +1488,7 @@ function buildMap() {
 
   const g = svg.append('g')
 
-  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(world => {
     const features = topojson.feature(world, world.objects.countries).features
       .filter(d => d.properties && d.properties.name !== 'Antarctica')
     window._worldFeatures = features
