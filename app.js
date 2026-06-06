@@ -1313,10 +1313,10 @@ function uploadDotBuffers() {
     const path = window._countryPaths && window._countryPaths[p.iso2]
     if (path) {
       const inside = clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0] + 5, proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0] - 5, proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0], proj[1] + 5, 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0], proj[1] - 5, 'evenodd')
+                     clipCtx.isPointInPath(path, proj[0] + 2, proj[1], 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0] - 2, proj[1], 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0], proj[1] + 2, 'evenodd') &&
+                     clipCtx.isPointInPath(path, proj[0], proj[1] - 2, 'evenodd')
       if (!inside) return
     }
 
