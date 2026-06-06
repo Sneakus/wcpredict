@@ -1219,7 +1219,7 @@ function initWebGL(width, height) {
       float cx = (sx / uW) * 2.0 - 1.0;
       float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = 5.0;
+      gl_PointSize = clamp(5.0 / sqrt(uK), 1.5, 6.0);
       vCol = aCol;
     }
   `
