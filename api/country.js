@@ -2,6 +2,18 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
+const VALID_TEAMS = new Set([
+  'Argentina','Algeria','Australia','Austria','Belgium',
+  'Bosnia and Herzegovina','Brazil','Canada','Cape Verde','Colombia',
+  'Croatia','Czechia','Curaçao','DR Congo','Ecuador','Egypt',
+  'England','France','Germany','Ghana','Haiti','Iran','Iraq',
+  'Ivory Coast','Japan','Jordan','Mexico','Morocco','Netherlands',
+  'New Zealand','Norway','Panama','Paraguay','Portugal','Qatar',
+  'Saudi Arabia','Scotland','Senegal','South Africa','South Korea',
+  'Spain','Sweden','Switzerland','Tunisia','Turkey','Uruguay',
+  'USA','Uzbekistan',
+])
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -43,12 +55,13 @@ export default async function handler(req, res) {
       .eq('nation_iso2', iso2)
       .not('tournament_winner', 'is', null)
 
-    if (data && data.length > 0) {
+    const filtered = (data || []).filter(row => VALID_TEAMS.has(row.tournament_winner))
+    if (filtered.length > 0) {
       const counts = {}
-      data.forEach(row => {
+      filtered.forEach(row => {
         counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1
       })
-      totalVotes = data.length
+      totalVotes = filtered.length
       let max = 0
       Object.entries(counts).forEach(([team, c]) => {
         if (c > max) { max = c; topPick = team; topPickVotes = c }

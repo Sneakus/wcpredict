@@ -1,5 +1,17 @@
 import { ImageResponse } from '@vercel/og'
 
+const VALID_TEAMS = new Set([
+  'Argentina','Algeria','Australia','Austria','Belgium',
+  'Bosnia and Herzegovina','Brazil','Canada','Cape Verde','Colombia',
+  'Croatia','Czechia','Curaçao','DR Congo','Ecuador','Egypt',
+  'England','France','Germany','Ghana','Haiti','Iran','Iraq',
+  'Ivory Coast','Japan','Jordan','Mexico','Morocco','Netherlands',
+  'New Zealand','Norway','Panama','Paraguay','Portugal','Qatar',
+  'Saudi Arabia','Scotland','Senegal','South Africa','South Korea',
+  'Spain','Sweden','Switzerland','Tunisia','Turkey','Uruguay',
+  'USA','Uzbekistan',
+])
+
 export const config = { runtime: 'edge' }
 
 // Tiny createElement helper so we don't need JSX
@@ -64,11 +76,12 @@ export default async function handler(req) {
     )
     if (r.ok) {
       const rows = await r.json()
+      const filtered = rows.filter(row => VALID_TEAMS.has(row.tournament_winner))
       const counts = {}
-      rows.forEach(row => {
+      filtered.forEach(row => {
         counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1
       })
-      totalVotes = rows.length
+      totalVotes = filtered.length
       let max = 0
       Object.entries(counts).forEach(([team, c]) => {
         if (c > max) { max = c; topPick = team; topPickVotes = c }
