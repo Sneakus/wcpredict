@@ -2,6 +2,18 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+)
+
+let indexHtml = ''
+try {
+  indexHtml = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+} catch (e) {
+  console.error('Failed to read index.html', e)
+}
+
 const VALID_TEAMS = new Set([
   'Argentina','Algeria','Australia','Austria','Belgium',
   'Bosnia and Herzegovina','Brazil','Canada','Cape Verde','Colombia',
@@ -13,19 +25,6 @@ const VALID_TEAMS = new Set([
   'Spain','Sweden','Switzerland','Tunisia','Turkey','Uruguay',
   'USA','Uzbekistan',
 ])
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
-
-// Read index.html at cold start
-let indexHtml = ''
-try {
-  indexHtml = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
-} catch (e) {
-  console.error('Failed to read index.html', e)
-}
 
 const dn = new Intl.DisplayNames(['en'], { type: 'region' })
 
@@ -49,14 +48,21 @@ export default async function handler(req, res) {
   let totalVotes = 0
   let topPickVotes = 0
   try {
-    const { data } = await supabase
+    let query = supabase
       .from('predictions')
       .select('tournament_winner')
-      .eq('nation_iso2', iso2)
       .not('tournament_winner', 'is', null)
 
-    const filtered = (data || []).filter(row => VALID_TEAMS.has(row.tournament_winner))
-    if (filtered.length > 0) {
+    if (iso2 === 'GB') {
+      query = query.in('nation_iso2', ['GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
+    } else {
+      query = query.eq('nation_iso2', iso2)
+    }
+
+    const { data } = await query
+
+    if (data && data.length > 0) {
+      const filtered = data.filter(row => VALID_TEAMS.has(row.tournament_winner))
       const counts = {}
       filtered.forEach(row => {
         counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1

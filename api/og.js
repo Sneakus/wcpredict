@@ -1,5 +1,13 @@
 import { ImageResponse } from '@vercel/og'
 
+export const config = { runtime: 'edge' }
+
+const h = (type, props, ...children) => ({
+  type,
+  props: { ...(props || {}), children: children.length === 1 ? children[0] : children.filter(c => c != null) },
+  key: null,
+})
+
 const VALID_TEAMS = new Set([
   'Argentina','Algeria','Australia','Austria','Belgium',
   'Bosnia and Herzegovina','Brazil','Canada','Cape Verde','Colombia',
@@ -11,15 +19,6 @@ const VALID_TEAMS = new Set([
   'Spain','Sweden','Switzerland','Tunisia','Turkey','Uruguay',
   'USA','Uzbekistan',
 ])
-
-export const config = { runtime: 'edge' }
-
-// Tiny createElement helper so we don't need JSX
-const h = (type, props, ...children) => ({
-  type,
-  props: { ...(props || {}), children: children.length === 1 ? children[0] : children },
-  key: null,
-})
 
 const TEAM_COLORS = {
   'Argentina': '#75AADB', 'Algeria': '#006633', 'Australia': '#FFD700',
@@ -60,13 +59,18 @@ export default async function handler(req) {
     return new Response('Invalid country', { status: 400 })
   }
 
+  // GB aggregates the four home nations
+  const filter = iso2 === 'GB'
+    ? 'nation_iso2=in.(GB-ENG,GB-SCT,GB-WLS,GB-NIR)'
+    : `nation_iso2=eq.${iso2}`
+
   let topPick = null
   let totalVotes = 0
   let topPickVotes = 0
 
   try {
     const r = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/predictions?nation_iso2=eq.${iso2}&tournament_winner=not.is.null&select=tournament_winner`,
+      `${process.env.SUPABASE_URL}/rest/v1/predictions?${filter}&tournament_winner=not.is.null&select=tournament_winner`,
       {
         headers: {
           apikey: process.env.SUPABASE_ANON_KEY,
@@ -98,53 +102,74 @@ export default async function handler(req) {
   const teamColor = topPick ? ensureVisible(TEAM_COLORS[topPick] || '#378ADD') : '#378ADD'
   const flagUrl = `https://flagcdn.com/h240/${iso2.toLowerCase()}.png`
 
-  const headerRow = h('div', {
-    style: { display: 'flex', alignItems: 'center' }
-  },
-    h('img', { src: flagUrl, height: 160, style: { marginRight: '32px', borderRadius: '8px' } }),
-    h('div', { style: { display: 'flex', flexDirection: 'column' } },
-      h('div', { style: { fontSize: 30, color: '#888' } }, 'The map says'),
-      h('div', { style: { fontSize: 84, fontWeight: 700, lineHeight: 1 } }, countryName)
-    )
-  )
-
-  const pickBlock = topPick
-    ? h('div', {
-        style: { marginTop: '70px', display: 'flex', flexDirection: 'column' }
-      },
-        h('div', { style: { fontSize: 34, color: '#bbb' } }, 'backs'),
-        h('div', { style: { fontSize: 152, fontWeight: 900, lineHeight: 1, color: teamColor } }, topPick),
-        h('div', { style: { marginTop: '36px', display: 'flex', alignItems: 'baseline' } },
-          h('div', { style: { fontSize: 68, fontWeight: 700 } }, `${pct}%`),
-          h('div', { style: { fontSize: 30, color: '#888', marginLeft: '24px' } },
-            `${totalVotes.toLocaleString()} ${totalVotes === 1 ? 'vote' : 'votes'}`
-          )
-        )
-      )
-    : h('div', {
-        style: { marginTop: '80px', fontSize: 68, fontWeight: 700, color: '#888' }
-      }, 'No votes yet — be the first.')
-
-  const brand = h('div', {
-    style: {
-      position: 'absolute', bottom: '40px', right: '60px',
-      display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-    }
-  },
-    h('div', { style: { fontSize: 38, fontWeight: 700 } }, 'worldcupmap.io'),
-    h('div', { style: { fontSize: 24, color: '#666' } }, 'Add your pick \u2192')
-  )
+  // Adaptive team-name font sizing so long names like "Bosnia and Herzegovina" fit
+  const teamFontSize = !topPick ? 64
+    : topPick.length > 16 ? 76
+    : topPick.length > 11 ? 110
+    : 152
 
   const tree = h('div', {
     style: {
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center',
       background: '#0a0a0a',
-      padding: '60px',
-      position: 'relative',
       color: '#fff',
+      padding: '40px 60px',
+      position: 'relative',
     }
-  }, headerRow, pickBlock, brand)
+  },
+    // Flag + country name in a horizontal row
+    h('div', {
+      style: { display: 'flex', alignItems: 'center', marginBottom: '24px' }
+    },
+      h('img', { src: flagUrl, height: 90, style: { borderRadius: '6px', marginRight: '24px' } }),
+      h('div', { style: { fontSize: 64, fontWeight: 700, lineHeight: 1 } }, countryName)
+    ),
+
+    // "backs"
+    topPick
+      ? h('div', { style: { fontSize: 32, color: '#888', marginBottom: '12px' } }, 'backs')
+      : null,
+
+    // Team name (huge centerpiece)
+    topPick
+      ? h('div', {
+          style: {
+            fontSize: teamFontSize,
+            fontWeight: 900,
+            lineHeight: 1.05,
+            color: teamColor,
+            marginBottom: '32px',
+            textAlign: 'center',
+            maxWidth: '1080px',
+          }
+        }, topPick)
+      : h('div', {
+          style: { fontSize: 64, fontWeight: 700, color: '#888', marginTop: '20px' }
+        }, 'No votes yet — be the first.'),
+
+    // Stats
+    topPick
+      ? h('div', { style: { display: 'flex', alignItems: 'baseline' } },
+          h('div', { style: { fontSize: 56, fontWeight: 700 } }, `${pct}%`),
+          h('div', { style: { fontSize: 28, color: '#888', marginLeft: '20px' } },
+            `${totalVotes.toLocaleString()} ${totalVotes === 1 ? 'vote' : 'votes'}`
+          )
+        )
+      : null,
+
+    // Brand at bottom
+    h('div', {
+      style: {
+        position: 'absolute',
+        bottom: '32px',
+        fontSize: 26,
+        color: '#888',
+        fontWeight: 600,
+      }
+    }, 'worldcupmap.io')
+  )
 
   return new ImageResponse(tree, {
     width: 1200,
