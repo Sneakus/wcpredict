@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/Sneakus/wcpredict#readme",
   "dependencies": {
-    "@supabase/supabase-js": "^2.107.0"
+    "@supabase/supabase-js": "^2.107.0",
+    "@vercel/og": "^0.6.4"
   }
 }

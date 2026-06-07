@@ -1,6 +1,9 @@
 {
   "outputDirectory": ".",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ]
+    { "source": "/:iso2([a-zA-Z]{2})", "destination": "/api/country?iso2=:iso2" }
+  ],
+  "functions": {
+    "api/country.js": { "includeFiles": "index.html" }
+  }
 }

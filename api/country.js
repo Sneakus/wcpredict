@@ -1,0 +1,99 @@
+import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+)
+
+// Read index.html at cold start
+let indexHtml = ''
+try {
+  indexHtml = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+} catch (e) {
+  console.error('Failed to read index.html', e)
+}
+
+const dn = new Intl.DisplayNames(['en'], { type: 'region' })
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export default async function handler(req, res) {
+  const iso2 = String(req.query.iso2 || '').toUpperCase()
+
+  if (!/^[A-Z]{2}$/.test(iso2)) {
+    res.writeHead(302, { Location: '/' })
+    return res.end()
+  }
+
+  let topPick = null
+  let totalVotes = 0
+  let topPickVotes = 0
+  try {
+    const { data } = await supabase
+      .from('predictions')
+      .select('tournament_winner')
+      .eq('nation_iso2', iso2)
+      .not('tournament_winner', 'is', null)
+
+    if (data && data.length > 0) {
+      const counts = {}
+      data.forEach(row => {
+        counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1
+      })
+      totalVotes = data.length
+      let max = 0
+      Object.entries(counts).forEach(([team, c]) => {
+        if (c > max) { max = c; topPick = team; topPickVotes = c }
+      })
+    }
+  } catch (e) {
+    console.error('Supabase query failed', e)
+  }
+
+  let countryName
+  try { countryName = dn.of(iso2) || iso2 } catch { countryName = iso2 }
+
+  const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+
+  const title = topPick
+    ? `${countryName} backs ${topPick} — World Cup Map`
+    : `${countryName} — World Cup Map`
+
+  const description = topPick
+    ? `${pct}% of ${countryName} backs ${topPick} to win the 2026 World Cup. Add your pick and see where your country stands.`
+    : `See how every nation is predicting the 2026 World Cup. Add your pick to the global map.`
+
+  const ogImageUrl = `https://worldcupmap.io/api/og?country=${iso2}&v=${today}`
+  const pageUrl = `https://worldcupmap.io/${iso2.toLowerCase()}`
+
+  let html = indexHtml || '<!doctype html><html><body>Loading…</body></html>'
+
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+  html = html.replace(/<meta name="description" content="[^"]*"\s*\/>/, `<meta name="description" content="${escapeHtml(description)}" />`)
+  html = html.replace(/<meta property="og:title" content="[^"]*"\s*\/>/, `<meta property="og:title" content="${escapeHtml(title)}" />`)
+  html = html.replace(/<meta property="og:description" content="[^"]*"\s*\/>/, `<meta property="og:description" content="${escapeHtml(description)}" />`)
+  html = html.replace(/<meta property="og:image" content="[^"]*"\s*\/>/, `<meta property="og:image" content="${ogImageUrl}" />`)
+  html = html.replace(/<meta property="og:url" content="[^"]*"\s*\/>/, `<meta property="og:url" content="${pageUrl}" />`)
+  html = html.replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${escapeHtml(title)}" />`)
+  html = html.replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/, `<meta name="twitter:description" content="${escapeHtml(description)}" />`)
+  html = html.replace(/<meta name="twitter:image" content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${ogImageUrl}" />`)
+
+  const landingPayload = JSON.stringify({ iso2, name: countryName, topPick, totalVotes })
+  html = html.replace(
+    '<script src="cities.js"></script>',
+    `<script>window.__COUNTRY_LANDING__ = ${landingPayload};</script>\n  <script src="cities.js"></script>`
+  )
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+  res.status(200).send(html)
+}
