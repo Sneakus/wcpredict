@@ -1220,19 +1220,23 @@ function initWebGL(width, height) {
       float cx = (sx / uW) * 2.0 - 1.0;
       float cy = 1.0 - (sy / uH) * 2.0;
       gl_Position = vec4(cx, cy, 0.0, 1.0);
-      gl_PointSize = clamp(1.8 + uK * 0.25, 1.8, 4.0);
+      gl_PointSize = clamp(2.6 + uK * 0.35, 2.6, 6.5);
       vCol = aCol;
     }
   `
 
-  // Fragment shader — soft radial glow using gl_PointCoord
+  // Fragment shader — LED look: white-hot core + colored halo
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
     void main() {
       float d = length(gl_PointCoord - vec2(0.5));
-      float alpha = smoothstep(0.5, 0.0, d) * 0.6;
-      gl_FragColor = vec4(vCol, alpha);
+      if (d > 0.5) discard;
+      float core = smoothstep(0.18, 0.0, d);
+      float halo = smoothstep(0.5, 0.05, d);
+      vec3 color = mix(vCol, vec3(1.0), core * 0.85);
+      float alpha = halo * 0.55 + core * 0.45;
+      gl_FragColor = vec4(color, alpha);
     }
   `
 
