@@ -2,6 +2,13 @@ import { ImageResponse } from '@vercel/og'
 
 export const config = { runtime: 'edge' }
 
+// Tiny createElement helper so we don't need JSX
+const h = (type, props, ...children) => ({
+  type,
+  props: { ...(props || {}), children: children.length === 1 ? children[0] : children },
+  key: null,
+})
+
 const TEAM_COLORS = {
   'Argentina': '#75AADB', 'Algeria': '#006633', 'Australia': '#FFD700',
   'Austria': '#ED2939', 'Belgium': '#ED1C24', 'Bosnia and Herzegovina': '#1A3A7A',
@@ -78,58 +85,59 @@ export default async function handler(req) {
   const teamColor = topPick ? ensureVisible(TEAM_COLORS[topPick] || '#378ADD') : '#378ADD'
   const flagUrl = `https://flagcdn.com/h240/${iso2.toLowerCase()}.png`
 
-  return new ImageResponse(
-    (
-      <div style={{
-        width: '100%', height: '100%',
-        display: 'flex', flexDirection: 'column',
-        background: '#0a0a0a',
-        padding: '60px',
-        position: 'relative',
-        color: '#fff',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <img src={flagUrl} height="160" style={{ marginRight: '32px', borderRadius: '8px' }} />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 30, color: '#888' }}>The map says</div>
-            <div style={{ fontSize: 84, fontWeight: 700, lineHeight: 1 }}>{countryName}</div>
-          </div>
-        </div>
-
-        {topPick ? (
-          <div style={{ marginTop: '70px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 34, color: '#bbb' }}>backs</div>
-            <div style={{ fontSize: 152, fontWeight: 900, lineHeight: 1, color: teamColor }}>
-              {topPick}
-            </div>
-            <div style={{ marginTop: '36px', display: 'flex', alignItems: 'baseline' }}>
-              <div style={{ fontSize: 68, fontWeight: 700 }}>{pct}%</div>
-              <div style={{ fontSize: 30, color: '#888', marginLeft: '24px' }}>
-                {totalVotes.toLocaleString()} {totalVotes === 1 ? 'vote' : 'votes'}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: '80px', fontSize: 68, fontWeight: 700, color: '#888' }}>
-            No votes yet — be the first.
-          </div>
-        )}
-
-        <div style={{
-          position: 'absolute', bottom: '40px', right: '60px',
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-        }}>
-          <div style={{ fontSize: 38, fontWeight: 700 }}>worldcupmap.io</div>
-          <div style={{ fontSize: 24, color: '#666' }}>Add your pick →</div>
-        </div>
-      </div>
-    ),
-    {
-      width: 1200,
-      height: 630,
-      headers: {
-        'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=3600',
-      },
-    }
+  const headerRow = h('div', {
+    style: { display: 'flex', alignItems: 'center' }
+  },
+    h('img', { src: flagUrl, height: 160, style: { marginRight: '32px', borderRadius: '8px' } }),
+    h('div', { style: { display: 'flex', flexDirection: 'column' } },
+      h('div', { style: { fontSize: 30, color: '#888' } }, 'The map says'),
+      h('div', { style: { fontSize: 84, fontWeight: 700, lineHeight: 1 } }, countryName)
+    )
   )
+
+  const pickBlock = topPick
+    ? h('div', {
+        style: { marginTop: '70px', display: 'flex', flexDirection: 'column' }
+      },
+        h('div', { style: { fontSize: 34, color: '#bbb' } }, 'backs'),
+        h('div', { style: { fontSize: 152, fontWeight: 900, lineHeight: 1, color: teamColor } }, topPick),
+        h('div', { style: { marginTop: '36px', display: 'flex', alignItems: 'baseline' } },
+          h('div', { style: { fontSize: 68, fontWeight: 700 } }, `${pct}%`),
+          h('div', { style: { fontSize: 30, color: '#888', marginLeft: '24px' } },
+            `${totalVotes.toLocaleString()} ${totalVotes === 1 ? 'vote' : 'votes'}`
+          )
+        )
+      )
+    : h('div', {
+        style: { marginTop: '80px', fontSize: 68, fontWeight: 700, color: '#888' }
+      }, 'No votes yet — be the first.')
+
+  const brand = h('div', {
+    style: {
+      position: 'absolute', bottom: '40px', right: '60px',
+      display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+    }
+  },
+    h('div', { style: { fontSize: 38, fontWeight: 700 } }, 'worldcupmap.io'),
+    h('div', { style: { fontSize: 24, color: '#666' } }, 'Add your pick \u2192')
+  )
+
+  const tree = h('div', {
+    style: {
+      width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      background: '#0a0a0a',
+      padding: '60px',
+      position: 'relative',
+      color: '#fff',
+    }
+  }, headerRow, pickBlock, brand)
+
+  return new ImageResponse(tree, {
+    width: 1200,
+    height: 630,
+    headers: {
+      'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=3600',
+    },
+  })
 }
