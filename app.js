@@ -464,7 +464,7 @@ async function submitPredictions() {
     generateShareCard(iso2)
     const userTeam = tournamentWinner || (nationData[iso2] && nationData[iso2].pick)
     if (userTeam) setTimeout(() => {
-      for (let d = 0; d < 25; d++) firePulse(iso2, userTeam)
+      firePulse(iso2, userTeam)
       uploadDotBuffers()
       redrawDots()
     }, 500)
@@ -1415,9 +1415,7 @@ async function loadRecentPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 25; d++) {
-        firePulse(row.nation_iso2, teamName)
-      }
+      firePulse(row.nation_iso2, teamName)
     })
 
     // Upload to GPU and render
@@ -1443,9 +1441,7 @@ async function pollNewPulses() {
       const nd = nationData[row.nation_iso2]
       const teamName = row.predicted_winner || (nd && nd.pick) || null
       if (!teamName) return
-      for (let d = 0; d < 25; d++) {
-        firePulse(row.nation_iso2, teamName)
-      }
+      firePulse(row.nation_iso2, teamName)
     })
     uploadDotBuffers()
     redrawDots()
