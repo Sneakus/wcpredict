@@ -81,7 +81,7 @@ export default async function handler(req) {
 
   try {
     const r = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/predictions?${filter}&tournament_winner=not.is.null&select=tournament_winner`,
+      `${process.env.SUPABASE_URL}/rest/v1/predictions?${filter}&tournament_winner=not.is.null&select=tournament_winner,fingerprint_hash,created_at`,
       {
         headers: {
           apikey: process.env.SUPABASE_ANON_KEY,
@@ -91,7 +91,19 @@ export default async function handler(req) {
     )
     if (r.ok) {
       const rows = await r.json()
-      const filtered = rows.filter(row => VALID_TEAMS.has(row.tournament_winner))
+
+      // Dedupe: keep only the latest tournament pick per fingerprint
+      const latestByFp = new Map()
+      rows.forEach(row => {
+        const existing = latestByFp.get(row.fingerprint_hash)
+        if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
+          latestByFp.set(row.fingerprint_hash, row)
+        }
+      })
+
+      const filtered = Array.from(latestByFp.values())
+        .filter(row => VALID_TEAMS.has(row.tournament_winner))
+
       const counts = {}
       filtered.forEach(row => {
         counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1

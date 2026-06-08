@@ -52,8 +52,6 @@ export default async function handler(req, res) {
     res.writeHead(302, { Location: '/' })
     return res.end()
   }
-
-  // If subdivision, only allow whitelisted ones (GB home nations); redirect others
   if (iso2.includes('-') && !VALID_SUBDIVISIONS.has(iso2)) {
     res.writeHead(302, { Location: '/' })
     return res.end()
@@ -65,7 +63,7 @@ export default async function handler(req, res) {
   try {
     let query = supabase
       .from('predictions')
-      .select('tournament_winner')
+      .select('tournament_winner, fingerprint_hash, created_at')
       .not('tournament_winner', 'is', null)
 
     if (iso2 === 'GB') {
@@ -77,7 +75,18 @@ export default async function handler(req, res) {
     const { data } = await query
 
     if (data && data.length > 0) {
-      const filtered = data.filter(row => VALID_TEAMS.has(row.tournament_winner))
+      // Dedupe by fingerprint, keep latest tournament pick per user
+      const latestByFp = new Map()
+      data.forEach(row => {
+        const existing = latestByFp.get(row.fingerprint_hash)
+        if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
+          latestByFp.set(row.fingerprint_hash, row)
+        }
+      })
+
+      const filtered = Array.from(latestByFp.values())
+        .filter(row => VALID_TEAMS.has(row.tournament_winner))
+
       const counts = {}
       filtered.forEach(row => {
         counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1

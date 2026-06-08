@@ -68,6 +68,22 @@ const WC_TEAMS = [
 ]
 WC_TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 
+function autofillCountryFromIP() {
+  const select = document.getElementById('country-select')
+  if (!select || select.value) return
+  // Respect existing cookie preference
+  const cookieMatch = document.cookie.match(/(?:^|;\s*)wcp_country=([^;]+)/)
+  if (cookieMatch) return
+  fetch('/api/whereami')
+    .then(r => r.json())
+    .then(({ country }) => {
+      if (!country) return
+      const opt = select.querySelector(`option[value="${country}"]`)
+      if (opt) select.value = country
+    })
+    .catch(() => {})
+}
+
 const UK_NATIONS = [
   { name: 'England',          iso: 'GB-ENG' },
   { name: 'Scotland',         iso: 'GB-SCT' },
@@ -299,6 +315,7 @@ async function loadNations() {
   })
   const savedCountry = getCookie('wcp_country')
   if (savedCountry) sel.value = savedCountry
+  autofillCountryFromIP()
 }
 
 async function loadPredictionCount() {
