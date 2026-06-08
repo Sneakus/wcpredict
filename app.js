@@ -1629,7 +1629,7 @@ function buildMap() {
         if (j.country) preZoomToCountry(j.country)
       } catch (e) {}
     }
-    preZoomBootstrap()
+    setTimeout(preZoomBootstrap, 2000)
   })
 }
 
