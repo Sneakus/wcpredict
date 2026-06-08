@@ -1591,10 +1591,22 @@ function buildMap() {
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
       const tooltipEl = document.getElementById('tooltip')
-      // Tapping the tooltip itself expands the body to full list
+      // Tooltip touch: detect tap vs scroll. Tap expands; scroll scrolls normally.
       tooltipEl.addEventListener('touchstart', function(e) {
-        e.preventDefault()
         e.stopPropagation()
+        const t = e.touches[0]
+        this._touchStart = { x: t.clientX, y: t.clientY, time: Date.now() }
+      }, { passive: true })
+      tooltipEl.addEventListener('touchend', function(e) {
+        e.stopPropagation()
+        const start = this._touchStart
+        this._touchStart = null
+        if (!start) return
+        const t = e.changedTouches[0]
+        const dx = Math.abs(t.clientX - start.x)
+        const dy = Math.abs(t.clientY - start.y)
+        const dt = Date.now() - start.time
+        if (dx > 10 || dy > 10 || dt > 400) return // it was a scroll, not a tap
         const name = window._currentTooltipCountry
         if (!name) return
         const isUK = name === 'United Kingdom'
@@ -1607,7 +1619,7 @@ function buildMap() {
                 ? (currentView === 'wc' ? buildTooltipWC(nd, name, true) : buildTooltipMatchday(nd))
                 : '<div class="no-data">No predictions yet</div>'
             })()
-      }, { passive: false })
+      })
       // Tap anywhere outside country/tooltip dismisses
       document.addEventListener('touchstart', function(e) {
         if (!e.target.closest('path.country') && !e.target.closest('#tooltip')) {
