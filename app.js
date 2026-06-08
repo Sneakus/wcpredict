@@ -1572,16 +1572,31 @@ function buildMap() {
         event.stopPropagation()
       })
       .on('touchstart', function(event, d) {
+        const touch = event.touches[0]
+        this._touchStart = {
+          x: touch.clientX,
+          y: touch.clientY,
+          time: Date.now(),
+          name: d.properties && d.properties.name,
+        }
+      }, { passive: true })
+      .on('touchend', function(event, d) {
+        const start = this._touchStart
+        this._touchStart = null
+        if (!start || !start.name) return
+        const touch = event.changedTouches[0]
+        const dx = Math.abs(touch.clientX - start.x)
+        const dy = Math.abs(touch.clientY - start.y)
+        const dt = Date.now() - start.time
+        // Movement >10px or duration >400ms = drag, not tap. Let d3-zoom handle it.
+        if (dx > 10 || dy > 10 || dt > 400) return
         event.preventDefault()
         event.stopPropagation()
-        const name = d.properties && d.properties.name
-        if (!name) return
-        const touch = event.touches[0]
         const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
-        const isUK = name === 'United Kingdom'
+        const isUK = start.name === 'United Kingdom'
         tooltipSticky = true
-        window._currentTooltipCountry = name
-        showTooltip(fakeEvent, name, isUK, mapWrap, width, true)
+        window._currentTooltipCountry = start.name
+        showTooltip(fakeEvent, start.name, isUK, mapWrap, width, true)
       }, { passive: false })
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
