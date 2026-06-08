@@ -898,15 +898,22 @@ function closeShareModal() {
   document.getElementById('share-modal').style.display = 'none'
 }
 
+function getShareUrl() {
+  const iso2 = getCookie('wcp_country')
+  if (!iso2) return 'https://worldcupmap.io'
+  return `https://worldcupmap.io/${iso2.toLowerCase()}`
+}
+
 async function shareCardStories() {
   const canvas = document.getElementById('share-canvas')
   canvas.toBlob(async (blob) => {
     const file = new File([blob], 'worldcupmap.jpg', { type: 'image/jpeg' })
+    const url = getShareUrl()
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
-          text: `See how every country is picking the 2026 World Cup winner 🌍 worldcupmap.io`,
+          text: `See how every country is picking the 2026 World Cup winner 🌍 ${url}`,
         })
       } catch (e) {
         if (e.name !== 'AbortError') downloadCardStories()
@@ -922,11 +929,12 @@ async function shareCardWhatsApp() {
   const landscape = buildLandscapeCard(portrait)
   landscape.toBlob(async (blob) => {
     const file = new File([blob], 'worldcupmap-whatsapp.jpg', { type: 'image/jpeg' })
+    const url = getShareUrl()
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
-          text: `See how every country is picking the 2026 World Cup winner 🌍 worldcupmap.io`,
+          text: `See how every country is picking the 2026 World Cup winner 🌍 ${url}`,
         })
       } catch (e) {
         if (e.name !== 'AbortError') downloadCardWhatsApp()
