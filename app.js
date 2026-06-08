@@ -1146,7 +1146,7 @@ function buildTooltipUK() {
           <div class="no-data" style="font-size:10px">No data yet</div>
         </div>`
       }
-      const total = entries.reduce((s, [, v]) => s + v, 0)
+      const total = Object.values(nd.tournamentPicks || {}).reduce((s, v) => s + v, 0)
       return `<div class="tt-uk-nation">
         <div class="tt-uk-label">${flag} ${nation.name}</div>
         ${entries.map(([team, count]) => {
