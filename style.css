@@ -798,12 +798,6 @@ body {
     font-size: 18px;
   }
 
-  .sub {
-    font-size: 11px;
-    line-height: 1.4;
-    max-width: 100%;
-  }
-
   #header-controls {
     justify-content: space-between;
     width: 100%;
@@ -830,6 +824,23 @@ body {
 
   #map-wrap {
     overflow: hidden;
+    height: 65vh;
+    min-height: 420px;
+  }
+
+  #map,
+  #map svg {
+    height: 100%;
+  }
+
+  .sub {
+    display: none;
+  }
+
+  .privacy-note {
+    font-size: 10px;
+    opacity: 0.55;
+    margin-top: 2px;
   }
 
   #zoom-controls {

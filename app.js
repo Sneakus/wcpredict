@@ -1492,13 +1492,16 @@ function buildMap() {
     requestAnimationFrame(buildMap)
     return
   }
-  const height = Math.round(width * 0.52)
+  const isMobile = window.innerWidth < 640
+  const height = isMobile
+    ? Math.max(420, Math.round(window.innerHeight * 0.65))
+    : Math.round(width * 0.52)
   const svg = d3.select('#map').append('svg')
     .attr('viewBox', `0 0 ${width} ${height}`)
     .attr('width', '100%')
     .style('cursor', 'grab')
   const projection = d3.geoNaturalEarth1()
-    .scale(width / 6.3)
+    .scale(isMobile ? width / 4.2 : width / 6.3)
     .translate([width / 2, height / 2.1])
   const path = d3.geoPath(projection)
   mapProjection = projection
@@ -1594,6 +1597,39 @@ function buildMap() {
       }, { passive: true })
     }
     updateMapColors()
+
+    // Pre-zoom to visitor's country on mobile + cold landing
+    function preZoomToCountry(iso2) {
+      if (!iso2) return
+      const isUKSub = iso2.startsWith('GB-')
+      const nation = nations.find(n => n.iso2 === iso2.toUpperCase())
+      const lookupName = isUKSub ? 'United Kingdom' : (nation ? nation.name : null)
+      if (!lookupName) return
+      const feature = features.find(f => f.properties && f.properties.name === lookupName)
+      if (!feature) return
+      const [[x0, y0], [x1, y1]] = path.bounds(feature)
+      const dx = x1 - x0, dy = y1 - y0
+      if (dx <= 0 || dy <= 0) return
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
+      const scale = Math.min(6, Math.max(2, 0.6 / Math.max(dx / width, dy / height)))
+      const tx = width / 2 - scale * cx
+      const ty = height / 2 - scale * cy
+      svg.transition().duration(900).ease(d3.easeCubicOut)
+        .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
+    }
+    async function preZoomBootstrap() {
+      if (window.__COUNTRY_LANDING__ && window.__COUNTRY_LANDING__.iso2) {
+        return preZoomToCountry(window.__COUNTRY_LANDING__.iso2)
+      }
+      const cookieIso = getCookie('wcp_country')
+      if (cookieIso) return preZoomToCountry(cookieIso)
+      try {
+        const r = await fetch('/api/whereami')
+        const j = await r.json()
+        if (j.country) preZoomToCountry(j.country)
+      } catch (e) {}
+    }
+    preZoomBootstrap()
   })
 }
 
