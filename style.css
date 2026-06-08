@@ -845,7 +845,7 @@ body {
 
   #tooltip {
     pointer-events: auto;
-    max-height: 55vh;
+    max-height: 280px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }

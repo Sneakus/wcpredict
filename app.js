@@ -1494,7 +1494,7 @@ function buildMap() {
   }
   const isMobile = window.innerWidth < 640
   const height = isMobile
-    ? Math.max(420, Math.round(window.innerHeight * 0.65))
+    ? Math.max(420, container.offsetHeight || Math.round(window.innerHeight * 0.65))
     : Math.round(width * 0.52)
   const svg = d3.select('#map').append('svg')
     .attr('viewBox', `0 0 ${width} ${height}`)
