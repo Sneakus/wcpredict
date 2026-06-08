@@ -71,15 +71,19 @@ WC_TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 function autofillCountryFromIP() {
   const select = document.getElementById('country-select')
   if (!select || select.value) return
-  // Respect existing cookie preference
   const cookieMatch = document.cookie.match(/(?:^|;\s*)wcp_country=([^;]+)/)
   if (cookieMatch) return
   fetch('/api/whereami')
     .then(r => r.json())
     .then(({ country }) => {
       if (!country) return
-      const opt = select.querySelector(`option[value="${country}"]`)
-      if (opt) select.value = country
+      // Try exact match first
+      let opt = select.querySelector(`option[value="${country}"]`)
+      // UK visitors land as plain "GB" — fall back to England as the default subdivision
+      if (!opt && country === 'GB') {
+        opt = select.querySelector(`option[value="GB-ENG"]`)
+      }
+      if (opt) select.value = opt.value
     })
     .catch(() => {})
 }
