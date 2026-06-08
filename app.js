@@ -1579,47 +1579,19 @@ function buildMap() {
         const touch = event.touches[0]
         const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
         const isUK = name === 'United Kingdom'
-        // Same country tapped again: expand. Different country (or first tap): show top-5 sticky.
-        if (tooltipSticky && window._currentTooltipCountry === name) {
-          showTooltip(fakeEvent, name, isUK, mapWrap, width, true)
-        } else {
-          tooltipSticky = true
-          window._currentTooltipCountry = name
-          showTooltip(fakeEvent, name, isUK, mapWrap, width, false)
-        }
+        tooltipSticky = true
+        window._currentTooltipCountry = name
+        showTooltip(fakeEvent, name, isUK, mapWrap, width, true)
       }, { passive: false })
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
       const tooltipEl = document.getElementById('tooltip')
-      // Tooltip touch: detect tap vs scroll. Tap expands; scroll scrolls normally.
       tooltipEl.addEventListener('touchstart', function(e) {
         e.stopPropagation()
-        const t = e.touches[0]
-        this._touchStart = { x: t.clientX, y: t.clientY, time: Date.now() }
       }, { passive: true })
       tooltipEl.addEventListener('touchend', function(e) {
         e.stopPropagation()
-        const start = this._touchStart
-        this._touchStart = null
-        if (!start) return
-        const t = e.changedTouches[0]
-        const dx = Math.abs(t.clientX - start.x)
-        const dy = Math.abs(t.clientY - start.y)
-        const dt = Date.now() - start.time
-        if (dx > 10 || dy > 10 || dt > 400) return // it was a scroll, not a tap
-        const name = window._currentTooltipCountry
-        if (!name) return
-        const isUK = name === 'United Kingdom'
-        document.getElementById('tt-body').innerHTML = isUK
-          ? buildTooltipUK()
-          : (() => {
-              const iso = resolveIso(name)
-              const nd = iso ? nationData[iso] : null
-              return nd
-                ? (currentView === 'wc' ? buildTooltipWC(nd, name, true) : buildTooltipMatchday(nd))
-                : '<div class="no-data">No predictions yet</div>'
-            })()
-      })
+      }, { passive: true })
       // Tap anywhere outside country/tooltip dismisses
       document.addEventListener('touchstart', function(e) {
         if (!e.target.closest('path.country') && !e.target.closest('#tooltip')) {
