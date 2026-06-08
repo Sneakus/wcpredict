@@ -142,6 +142,16 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Local docs — not for the repo
+# Local-only files — never commit
+seed_predictions.py
+generate_cities.py
+.env
+.env.*
+*.local
 wcpredict-design-doc.md
 wcpredict-handover.md
+
+# Standard ignores
+node_modules/
+.DS_Store
+.vercel
