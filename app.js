@@ -400,14 +400,29 @@ async function loadNationData() {
 }
 
 async function loadTodayMatches() {
-  const today = new Date()
-  const start = new Date(today); start.setHours(0,0,0,0)
-  const end = new Date(today); end.setHours(23,59,59,999)
-  const { data, error } = await sb.from('matches').select('*')
+  const now = new Date()
+  const start = new Date(now); start.setHours(0, 0, 0, 0)
+  const end = new Date(now); end.setHours(23, 59, 59, 999)
+
+  // Try today first
+  let { data, error } = await sb.from('matches').select('*')
     .gte('kickoff_at', start.toISOString())
     .lte('kickoff_at', end.toISOString())
     .order('kickoff_at')
   if (error) { console.error('loadTodayMatches error:', error); return }
+
+  // If nothing today, show the next upcoming match(es) within 5 days
+  if (!data || data.length === 0) {
+    const lookahead = new Date(now)
+    lookahead.setDate(lookahead.getDate() + 5)
+    const result = await sb.from('matches').select('*')
+      .gt('kickoff_at', now.toISOString())
+      .lte('kickoff_at', lookahead.toISOString())
+      .order('kickoff_at')
+      .limit(3)
+    data = result.data || []
+  }
+
   todayMatches = data || []
   renderMatches()
   updatePickPromptVisibility()
@@ -416,7 +431,7 @@ async function loadTodayMatches() {
 function renderMatches() {
   const el = document.getElementById('matches-list')
   if (todayMatches.length === 0) {
-    el.innerHTML = '<p class="loading">No matches today — first game is June 11th!</p>'
+    el.innerHTML = '<p class="loading">No matches in the next few days.</p>'
     return
   }
   el.innerHTML = ''
