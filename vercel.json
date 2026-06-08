@@ -1,7 +1,8 @@
 {
   "outputDirectory": ".",
   "rewrites": [
-    { "source": "/:iso2([a-zA-Z]{2})", "destination": "/api/country?iso2=:iso2" }
+    { "source": "/:iso2([a-zA-Z]{2})", "destination": "/api/country?iso2=:iso2" },
+    { "source": "/:iso2([a-zA-Z]{2}-[a-zA-Z]{3})", "destination": "/api/country?iso2=:iso2" }
   ],
   "functions": {
     "api/country.js": { "includeFiles": "index.html" }

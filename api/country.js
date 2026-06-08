@@ -26,6 +26,15 @@ const VALID_TEAMS = new Set([
   'USA','Uzbekistan',
 ])
 
+const VALID_SUBDIVISIONS = new Set(['GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
+
+const SUBDIVISION_NAMES = {
+  'GB-ENG': 'England',
+  'GB-SCT': 'Scotland',
+  'GB-WLS': 'Wales',
+  'GB-NIR': 'Northern Ireland',
+}
+
 const dn = new Intl.DisplayNames(['en'], { type: 'region' })
 
 function escapeHtml(s) {
@@ -39,7 +48,13 @@ function escapeHtml(s) {
 export default async function handler(req, res) {
   const iso2 = String(req.query.iso2 || '').toUpperCase()
 
-  if (!/^[A-Z]{2}$/.test(iso2)) {
+  if (!/^[A-Z]{2}(-[A-Z]{3})?$/.test(iso2)) {
+    res.writeHead(302, { Location: '/' })
+    return res.end()
+  }
+
+  // If subdivision, only allow whitelisted ones (GB home nations); redirect others
+  if (iso2.includes('-') && !VALID_SUBDIVISIONS.has(iso2)) {
     res.writeHead(302, { Location: '/' })
     return res.end()
   }
@@ -54,7 +69,7 @@ export default async function handler(req, res) {
       .not('tournament_winner', 'is', null)
 
     if (iso2 === 'GB') {
-      query = query.in('nation_iso2', ['GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
+      query = query.in('nation_iso2', ['GB', 'GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
     } else {
       query = query.eq('nation_iso2', iso2)
     }
@@ -78,7 +93,11 @@ export default async function handler(req, res) {
   }
 
   let countryName
-  try { countryName = dn.of(iso2) || iso2 } catch { countryName = iso2 }
+  if (SUBDIVISION_NAMES[iso2]) {
+    countryName = SUBDIVISION_NAMES[iso2]
+  } else {
+    try { countryName = dn.of(iso2) || iso2 } catch { countryName = iso2 }
+  }
 
   const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')

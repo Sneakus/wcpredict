@@ -20,6 +20,15 @@ const VALID_TEAMS = new Set([
   'USA','Uzbekistan',
 ])
 
+const VALID_SUBDIVISIONS = new Set(['GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
+
+const SUBDIVISION_NAMES = {
+  'GB-ENG': 'England',
+  'GB-SCT': 'Scotland',
+  'GB-WLS': 'Wales',
+  'GB-NIR': 'Northern Ireland',
+}
+
 const TEAM_COLORS = {
   'Argentina': '#75AADB', 'Algeria': '#006633', 'Australia': '#FFD700',
   'Austria': '#ED2939', 'Belgium': '#ED1C24', 'Bosnia and Herzegovina': '#1A3A7A',
@@ -55,13 +64,15 @@ export default async function handler(req) {
   const { searchParams } = new URL(req.url)
   const iso2 = String(searchParams.get('country') || '').toUpperCase()
 
-  if (!/^[A-Z]{2}$/.test(iso2)) {
+  if (!/^[A-Z]{2}(-[A-Z]{3})?$/.test(iso2)) {
     return new Response('Invalid country', { status: 400 })
   }
+  if (iso2.includes('-') && !VALID_SUBDIVISIONS.has(iso2)) {
+    return new Response('Invalid subdivision', { status: 400 })
+  }
 
-  // GB aggregates the four home nations
   const filter = iso2 === 'GB'
-    ? 'nation_iso2=in.(GB-ENG,GB-SCT,GB-WLS,GB-NIR)'
+    ? 'nation_iso2=in.(GB,GB-ENG,GB-SCT,GB-WLS,GB-NIR)'
     : `nation_iso2=eq.${iso2}`
 
   let topPick = null
@@ -96,13 +107,16 @@ export default async function handler(req) {
   }
 
   let countryName
-  try { countryName = dn.of(iso2) || iso2 } catch { countryName = iso2 }
+  if (SUBDIVISION_NAMES[iso2]) {
+    countryName = SUBDIVISION_NAMES[iso2]
+  } else {
+    try { countryName = dn.of(iso2) || iso2 } catch { countryName = iso2 }
+  }
 
   const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
   const teamColor = topPick ? ensureVisible(TEAM_COLORS[topPick] || '#378ADD') : '#378ADD'
   const flagUrl = `https://flagcdn.com/h240/${iso2.toLowerCase()}.png`
 
-  // Adaptive team-name font sizing so long names like "Bosnia and Herzegovina" fit
   const teamFontSize = !topPick ? 64
     : topPick.length > 16 ? 76
     : topPick.length > 11 ? 110
@@ -119,7 +133,6 @@ export default async function handler(req) {
       position: 'relative',
     }
   },
-    // Flag + country name in a horizontal row
     h('div', {
       style: { display: 'flex', alignItems: 'center', marginBottom: '24px' }
     },
@@ -127,12 +140,10 @@ export default async function handler(req) {
       h('div', { style: { fontSize: 64, fontWeight: 700, lineHeight: 1 } }, countryName)
     ),
 
-    // "backs"
     topPick
       ? h('div', { style: { fontSize: 32, color: '#888', marginBottom: '12px' } }, 'backs')
       : null,
 
-    // Team name (huge centerpiece)
     topPick
       ? h('div', {
           style: {
@@ -149,7 +160,6 @@ export default async function handler(req) {
           style: { fontSize: 64, fontWeight: 700, color: '#888', marginTop: '20px' }
         }, 'No votes yet — be the first.'),
 
-    // Stats
     topPick
       ? h('div', { style: { display: 'flex', alignItems: 'baseline' } },
           h('div', { style: { fontSize: 56, fontWeight: 700 } }, `${pct}%`),
@@ -159,7 +169,6 @@ export default async function handler(req) {
         )
       : null,
 
-    // Brand at bottom
     h('div', {
       style: {
         position: 'absolute',
