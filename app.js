@@ -66,6 +66,17 @@ const WC_TEAMS = [
   { name: 'USA',                  flag: '🇺🇸', color: '#1B2A4A' },
   { name: 'Uzbekistan',           flag: '🇺🇿', color: '#0A4595' },
 ]
+
+// Convert flag emoji to a Twemoji PNG URL.
+// Fixes Windows rendering: regional indicator pairs show as letter codes (AR, BR…) on Windows.
+function flagToTwemojiUrl(flag) {
+  const codepoints = Array.from(flag)
+    .map(c => c.codePointAt(0).toString(16))
+    .filter(cp => cp !== 'fe0f')
+    .join('-')
+  return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${codepoints}.png`
+}
+
 WC_TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 
 function autofillCountryFromIP() {
@@ -281,7 +292,7 @@ function buildTournamentPicker() {
     const btn = document.createElement('button')
     btn.className = 'team-btn' + (team.name === tournamentWinner ? ' active' : '')
     btn.dataset.team = team.name
-    btn.innerHTML = `${team.flag} ${team.name}`
+    btn.innerHTML = `<img src="${flagToTwemojiUrl(team.flag)}" class="team-flag" alt=""> ${team.name}`
     btn.addEventListener('click', () => {
       document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('active'))
       btn.classList.add('active')
@@ -299,7 +310,11 @@ function updateTournamentSelectedLabel() {
   if (!el || !nameEl) return
   if (tournamentWinner) {
     const team = WC_TEAMS.find(t => t.name === tournamentWinner)
-    nameEl.textContent = team ? `${team.flag} ${team.name}` : tournamentWinner
+    if (team) {
+      nameEl.innerHTML = `<img src="${flagToTwemojiUrl(team.flag)}" class="team-flag" alt=""> ${team.name}`
+    } else {
+      nameEl.textContent = tournamentWinner
+    }
     el.classList.remove('hidden')
   } else {
     el.classList.add('hidden')
@@ -1017,7 +1032,7 @@ function buildLeaderboards() {
     const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
     pickEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
-      <span class="lb-flag">${flag}</span>
+      <span class="lb-flag"><img src="${flag ? flagToTwemojiUrl(flag) : ''}" class="team-flag" alt=""></span>
       <span class="lb-name">${team}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
       <span class="lb-val">${count}</span>
@@ -1033,7 +1048,7 @@ function buildLeaderboards() {
       const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
       moreEl.innerHTML += `<div class="lb-row">
         <span class="lb-rank">${i+9}</span>
-        <span class="lb-flag">${flag}</span>
+        <span class="lb-flag"><img src="${flag ? flagToTwemojiUrl(flag) : ''}" class="team-flag" alt=""></span>
         <span class="lb-name">${team}</span>
         <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
         <span class="lb-val">${count}</span>
