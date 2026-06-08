@@ -1601,9 +1601,9 @@ function buildMap() {
     // Pre-zoom to visitor's country on mobile + cold landing
     function preZoomToCountry(iso2) {
       if (!iso2) return
-      const isUKSub = iso2.startsWith('GB-')
+      const isUK = iso2 === 'GB' || iso2.startsWith('GB-')
       const nation = nations.find(n => n.iso2 === iso2.toUpperCase())
-      const lookupName = isUKSub ? 'United Kingdom' : (nation ? nation.name : null)
+      const lookupName = isUK ? 'United Kingdom' : (nation ? nation.name : null)
       if (!lookupName) return
       const feature = features.find(f => f.properties && f.properties.name === lookupName)
       if (!feature) return
@@ -1614,7 +1614,7 @@ function buildMap() {
       const scale = Math.min(6, Math.max(2, 0.6 / Math.max(dx / width, dy / height)))
       const tx = width / 2 - scale * cx
       const ty = height / 2 - scale * cy
-      svg.transition().duration(900).ease(d3.easeCubicOut)
+      svg.transition().duration(1800).ease(d3.easeCubicOut)
         .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
     }
     async function preZoomBootstrap() {
