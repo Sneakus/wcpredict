@@ -61,10 +61,11 @@ export default async function handler(req, res) {
   let totalVotes = 0
   let topPickVotes = 0
   try {
+    // Mirror map's loadNationData query: match_id IS NULL, count predicted_winner
     let query = supabase
       .from('predictions')
-      .select('tournament_winner, fingerprint_hash, created_at')
-      .not('tournament_winner', 'is', null)
+      .select('predicted_winner')
+      .is('match_id', null)
 
     if (iso2 === 'GB') {
       query = query.in('nation_iso2', ['GB', 'GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR'])
@@ -75,21 +76,10 @@ export default async function handler(req, res) {
     const { data } = await query
 
     if (data && data.length > 0) {
-      // Dedupe by fingerprint, keep latest tournament pick per user
-      const latestByFp = new Map()
-      data.forEach(row => {
-        const existing = latestByFp.get(row.fingerprint_hash)
-        if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
-          latestByFp.set(row.fingerprint_hash, row)
-        }
-      })
-
-      const filtered = Array.from(latestByFp.values())
-        .filter(row => VALID_TEAMS.has(row.tournament_winner))
-
+      const filtered = data.filter(row => row.predicted_winner && VALID_TEAMS.has(row.predicted_winner))
       const counts = {}
       filtered.forEach(row => {
-        counts[row.tournament_winner] = (counts[row.tournament_winner] || 0) + 1
+        counts[row.predicted_winner] = (counts[row.predicted_winner] || 0) + 1
       })
       totalVotes = filtered.length
       let max = 0
