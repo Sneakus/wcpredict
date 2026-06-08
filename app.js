@@ -1514,7 +1514,7 @@ function buildMap() {
   let tooltipSticky = false
 
   const zoom = d3.zoom()
-    .scaleExtent([1, 8])
+    .scaleExtent([1, 16])
     .translateExtent([[0,0],[width,height]])
     .on('zoom', event => {
       g.attr('transform', event.transform)
@@ -1559,9 +1559,9 @@ function buildMap() {
         if (!tooltipSticky) showTooltip(event, name, name === 'United Kingdom', mapWrap, width, false)
       })
       .on('mouseleave', function() {
+        d3.select(this).attr('opacity', 1)
         if (!tooltipSticky) {
           tooltip.style.display = 'none'
-          d3.select(this).attr('opacity', 1)
         }
       })
       .on('click', function(event, d) {
@@ -1573,28 +1573,49 @@ function buildMap() {
       })
       .on('touchstart', function(event, d) {
         event.preventDefault()
+        event.stopPropagation()
         const name = d.properties && d.properties.name
         if (!name) return
-        const lastTapped = this.dataset.lastTapped
-        const now = Date.now()
         const touch = event.touches[0]
         const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
-        if (lastTapped && now - parseInt(lastTapped) < 600) {
-          showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width, true)
+        const isUK = name === 'United Kingdom'
+        // Same country tapped again: expand. Different country (or first tap): show top-5 sticky.
+        if (tooltipSticky && window._currentTooltipCountry === name) {
+          showTooltip(fakeEvent, name, isUK, mapWrap, width, true)
+        } else {
           tooltipSticky = true
-          return
+          window._currentTooltipCountry = name
+          showTooltip(fakeEvent, name, isUK, mapWrap, width, false)
         }
-        this.dataset.lastTapped = now
-        showTooltip(fakeEvent, name, name === 'United Kingdom', mapWrap, width, false)
       }, { passive: false })
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
+      const tooltipEl = document.getElementById('tooltip')
+      // Tapping the tooltip itself expands the body to full list
+      tooltipEl.addEventListener('touchstart', function(e) {
+        e.preventDefault()
+        e.stopPropagation()
+        const name = window._currentTooltipCountry
+        if (!name) return
+        const isUK = name === 'United Kingdom'
+        document.getElementById('tt-body').innerHTML = isUK
+          ? buildTooltipUK()
+          : (() => {
+              const iso = resolveIso(name)
+              const nd = iso ? nationData[iso] : null
+              return nd
+                ? (currentView === 'wc' ? buildTooltipWC(nd, name, true) : buildTooltipMatchday(nd))
+                : '<div class="no-data">No predictions yet</div>'
+            })()
+      }, { passive: false })
+      // Tap anywhere outside country/tooltip dismisses
       document.addEventListener('touchstart', function(e) {
         if (!e.target.closest('path.country') && !e.target.closest('#tooltip')) {
           tooltipSticky = false
-          tooltip.style.display = 'none'
+          window._currentTooltipCountry = null
+          tooltipEl.style.display = 'none'
         }
-      }, { passive: true })
+      })
     }
     updateMapColors()
 
