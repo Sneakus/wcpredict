@@ -172,14 +172,11 @@ export default async function handler(req) {
 
     h('div', {
       style: {
-        position: 'absolute',
-        bottom: '32px',
-        left: 0,
-        right: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center',
+        marginTop: '40px',
       }
     },
       h('div', { style: { fontSize: 40, color: '#888', fontWeight: 500, marginBottom: '6px' } }, 'Where does the world stand?'),
