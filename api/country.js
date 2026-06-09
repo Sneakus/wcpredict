@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   }
 
   const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
-  const ogCacheBust = '20260604'
+  const ogCacheBust = '20260609'
 
   const title = topPick
     ? `${countryName} backs ${topPick} — World Cup Map`
