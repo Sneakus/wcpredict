@@ -112,6 +112,13 @@ const UK_NATIONS = [
   { name: 'Wales',            iso: 'GB-WLS' },
   { name: 'Northern Ireland', iso: 'GB-NIR' },
 ]
+const UK_ISO_CODES = ['GB', 'GB-ENG', 'GB-SCT', 'GB-WLS', 'GB-NIR']
+const GB_SUBDIVISION_WEIGHTS = [
+  ['GB-ENG', 0.84],
+  ['GB-SCT', 0.08],
+  ['GB-WLS', 0.05],
+  ['GB-NIR', 0.03],
+]
 
 const COUNTRY_NAME_TO_ISO = {
   'United Kingdom':             '__UK__',
@@ -419,6 +426,17 @@ async function loadNationData() {
       tournamentPicks: d.tournamentPicks,
     }
   })
+  if (byNation['GB'] && !nationData['GB']) {
+    const d = byNation['GB']
+    const topPick = Object.entries(d.tournamentPicks).sort((a, b) => b[1] - a[1])[0]
+    nationData['GB'] = {
+      iso: 'GB', name: 'United Kingdom',
+      pick: topPick ? topPick[0] : null,
+      acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
+      matchPicks: d.matchPicks,
+      tournamentPicks: d.tournamentPicks,
+    }
+  }
 }
 
 async function loadTodayMatches() {
@@ -1064,19 +1082,47 @@ function getColorForIso(iso) {
   return top[0]==='Draw' ? 'rgba(136,135,128,0.8)' : (TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]]+'cc' : null)
 }
 
-function resolveUKColor() {
-  if (currentView !== 'wc') return getColorForIso('GB-ENG')
-  const merged = {}
-  ;['GB-ENG','GB-SCT','GB-WLS','GB-NIR'].forEach(iso => {
+function mergeUKPredictionData() {
+  const merged = { tournamentPicks: {}, matchPicks: {} }
+  UK_ISO_CODES.forEach(iso => {
     const nd = nationData[iso]
     if (!nd) return
     Object.entries(nd.tournamentPicks || {}).forEach(([team, count]) => {
-      merged[team] = (merged[team] || 0) + count
+      merged.tournamentPicks[team] = (merged.tournamentPicks[team] || 0) + count
+    })
+    Object.entries(nd.matchPicks || {}).forEach(([matchId, picks]) => {
+      if (!merged.matchPicks[matchId]) merged.matchPicks[matchId] = {}
+      Object.entries(picks).forEach(([team, count]) => {
+        merged.matchPicks[matchId][team] = (merged.matchPicks[matchId][team] || 0) + count
+      })
     })
   })
-  const top = Object.entries(merged).sort((a,b) => b[1]-a[1])[0]
+  return merged
+}
+
+function resolveUKColor() {
+  const merged = mergeUKPredictionData()
+  if (currentView === 'wc') {
+    const top = Object.entries(merged.tournamentPicks).sort((a, b) => b[1] - a[1])[0]
+    if (!top) return null
+    return TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]] + 'cc' : null
+  }
+  if (!todayMatches.length) return null
+  const mp = merged.matchPicks[todayMatches[0].id]
+  if (!mp) return null
+  const top = Object.entries(mp).sort((a, b) => b[1] - a[1])[0]
   if (!top) return null
-  return TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]] + 'cc' : null
+  return top[0] === 'Draw' ? 'rgba(136,135,128,0.8)' : (TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]] + 'cc' : null)
+}
+
+function resolvePulseIso2(iso2) {
+  if (iso2 !== 'GB') return iso2
+  let r = Math.random()
+  for (const [iso, weight] of GB_SUBDIVISION_WEIGHTS) {
+    r -= weight
+    if (r <= 0) return iso
+  }
+  return 'GB-ENG'
 }
 
 function updateMapColors() {
@@ -1470,13 +1516,14 @@ function firePulse(iso2, teamName, attempt = 0) {
     if (attempt < 10) setTimeout(() => firePulse(iso2, teamName, attempt + 1), 500)
     return
   }
-  const city = getPulseCity(iso2)
+  const pulseIso = resolvePulseIso2(iso2)
+  const city = getPulseCity(pulseIso)
   if (!city) return
   const jitterLng = (Math.random() - 0.5) * 0.18
   const jitterLat = (Math.random() - 0.5) * 0.14
   const w = city.weight != null ? city.weight : 0.5
   const [r, g, b] = [1.0, 1.0, 1.0]
-  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2, w })
+  dotPoints.push({ lng: city.lng + jitterLng, lat: city.lat + jitterLat, r, g, b, iso2: pulseIso, w })
 }
 
 async function loadRecentPulses() {
