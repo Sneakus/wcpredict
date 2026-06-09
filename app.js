@@ -1224,8 +1224,18 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
+function clipErosionForBounds(bounds) {
+  const w = bounds[1][0] - bounds[0][0]
+  const h = bounds[1][1] - bounds[0][1]
+  const size = Math.max(w, h)
+  if (size < 20) return 0
+  if (size > 100) return 2
+  return ((size - 20) / 80) * 2
+}
+
 function resetDotClipCache(width, height) {
   window._countryPaths = null
+  window._countryErosion = null
   if (window._clipCanvas && width && height) {
     window._clipCanvas.width = width
     window._clipCanvas.height = height
@@ -1342,17 +1352,17 @@ function uploadDotBuffers() {
     window._clipCanvas.width = glWidth
     window._clipCanvas.height = glHeight
     window._countryPaths = null
+    window._countryErosion = null
   }
   const clipCtx = window._clipCtx
 
   // Build a path2D per ISO2 from world features for boundary clipping
   if (!window._countryPaths) {
     window._countryPaths = {}
+    window._countryErosion = {}
     if (window._worldFeatures && mapProjection) {
       const pathGen = d3.geoPath(mapProjection)
 
-      // Erode each country path inward by ~3 pixels by drawing the path
-      // then using a smaller bounding-box-fitted version
       window._worldFeatures.forEach(f => {
         const name = f.properties && f.properties.name
         const iso2 = name && COUNTRY_NAME_TO_ISO[name]
@@ -1361,6 +1371,7 @@ function uploadDotBuffers() {
         if (svgStr) {
           try {
             window._countryPaths[iso2] = new Path2D(svgStr)
+            window._countryErosion[iso2] = clipErosionForBounds(pathGen.bounds(f))
           } catch(e) {}
         }
       })
@@ -1371,8 +1382,10 @@ function uploadDotBuffers() {
         const gbSvg = pathGen(gbFeature)
         if (gbSvg) {
           const gbPath = new Path2D(gbSvg)
+          const gbErosion = clipErosionForBounds(pathGen.bounds(gbFeature))
           ;['GB-ENG','GB-SCT','GB-WLS','GB-NIR'].forEach(sub => {
             window._countryPaths[sub] = gbPath
+            window._countryErosion[sub] = gbErosion
           })
         }
       }
@@ -1387,14 +1400,20 @@ function uploadDotBuffers() {
     const proj = mapProjection([p.lng, p.lat])
     if (!proj) return
 
-    // Check if dot falls inside its country boundary (3px inset for dot radius)
+    // Check if dot falls inside its country boundary (erosion scales with projected country size)
     const path = window._countryPaths && window._countryPaths[p.iso2]
     if (path) {
-      const inside = clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0] + 2, proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0] - 2, proj[1], 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0], proj[1] + 2, 'evenodd') &&
-                     clipCtx.isPointInPath(path, proj[0], proj[1] - 2, 'evenodd')
+      const erosion = window._countryErosion?.[p.iso2] ?? 2
+      let inside
+      if (erosion === 0) {
+        inside = clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd')
+      } else {
+        inside = clipCtx.isPointInPath(path, proj[0], proj[1], 'evenodd') &&
+                 clipCtx.isPointInPath(path, proj[0] + erosion, proj[1], 'evenodd') &&
+                 clipCtx.isPointInPath(path, proj[0] - erosion, proj[1], 'evenodd') &&
+                 clipCtx.isPointInPath(path, proj[0], proj[1] + erosion, 'evenodd') &&
+                 clipCtx.isPointInPath(path, proj[0], proj[1] - erosion, 'evenodd')
+      }
       if (!inside) return
     }
 
