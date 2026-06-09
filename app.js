@@ -195,6 +195,7 @@ function getFeatureForIso(iso2) {
 
 let currentView = 'wc'
 let svgPaths = null
+let ukPaths = null
 let nationData = {}
 let todayMatches = []
 let nations = []
@@ -1125,16 +1126,19 @@ function resolvePulseIso2(iso2) {
   return 'GB-ENG'
 }
 
+function fillColorForMapFeature(d) {
+  const iso2 = d.properties && d.properties.iso2
+  if (iso2) return getColorForIso(iso2) || '#1e1e1e'
+  const name = d.properties && d.properties.name
+  if (!name) return '#1e1e1e'
+  const iso = resolveIso(name)
+  if (iso === null && COUNTRY_NAME_TO_ISO.hasOwnProperty(name)) return '#1e1e1e'
+  return getColorForIso(iso) || '#1e1e1e'
+}
+
 function updateMapColors() {
-  if (!svgPaths) return
-  svgPaths.attr('fill', d => {
-    const name = d.properties && d.properties.name
-    if (!name) return '#1e1e1e'
-    if (name === 'United Kingdom') return resolveUKColor() || '#1e1e1e'
-    const iso = resolveIso(name)
-    if (iso === null && COUNTRY_NAME_TO_ISO.hasOwnProperty(name)) return '#1e1e1e'
-    return getColorForIso(iso) || '#1e1e1e'
-  })
+  if (svgPaths) svgPaths.attr('fill', fillColorForMapFeature)
+  if (ukPaths) ukPaths.attr('fill', fillColorForMapFeature)
 }
 
 function buildTooltipWC(nd, name, showAll) {
@@ -1422,18 +1426,17 @@ function uploadDotBuffers() {
         }
       })
 
-      const gbFeature = window._worldFeatures.find(f =>
-        f.properties && f.properties.name === 'United Kingdom')
-      if (gbFeature) {
-        const gbSvg = pathGen(gbFeature)
-        if (gbSvg) {
-          const gbPath = new Path2D(gbSvg)
-          const gbErosion = clipErosionForBounds(pathGen.bounds(gbFeature))
-          ;['GB-ENG','GB-SCT','GB-WLS','GB-NIR'].forEach(sub => {
-            window._countryPaths[sub] = gbPath
-            window._countryErosion[sub] = gbErosion
-          })
-        }
+      if (window._ukNationFeatures) {
+        window._ukNationFeatures.forEach(f => {
+          const iso = f.properties && f.properties.iso2
+          if (!iso) return
+          const svgStr = pathGen(f)
+          if (!svgStr) return
+          try {
+            window._countryPaths[iso] = new Path2D(svgStr)
+            window._countryErosion[iso] = clipErosionForBounds(pathGen.bounds(f))
+          } catch (e) {}
+        })
       }
     }
   }
@@ -1655,34 +1658,23 @@ function buildMap(attempt = 0) {
 
   const g = svg.append('g')
 
-  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(world => {
-    const features = topojson.feature(world, world.objects.countries).features
-      .filter(d => d.properties && d.properties.name !== 'Antarctica')
-    window._worldFeatures = features
-    svgPaths = g.selectAll('path.country').data(features).join('path')
-      .attr('class', 'country')
-      .attr('d', path)
-      .attr('stroke', 'rgba(255,255,255,0.06)')
-      .attr('stroke-width', 0.4)
-      .attr('fill', '#1e1e1e')
-      .attr('cursor', 'pointer')
+  function attachCountryEvents(selection, resolveName, resolveIsUK) {
+    selection
       .on('mousemove', function(event, d) {
-        const name = d.properties && d.properties.name
+        const name = resolveName(d)
         if (!name) return
         d3.select(this).attr('opacity', 0.7)
-        if (!tooltipSticky) showTooltip(event, name, name === 'United Kingdom', mapWrap, width, false)
+        if (!tooltipSticky) showTooltip(event, name, resolveIsUK(d, name), mapWrap, width, false)
       })
       .on('mouseleave', function() {
         d3.select(this).attr('opacity', 1)
-        if (!tooltipSticky) {
-          tooltip.style.display = 'none'
-        }
+        if (!tooltipSticky) tooltip.style.display = 'none'
       })
       .on('click', function(event, d) {
-        const name = d.properties && d.properties.name
+        const name = resolveName(d)
         if (!name) return
         tooltipSticky = true
-        showTooltip(event, name, name === 'United Kingdom', mapWrap, width, true)
+        showTooltip(event, name, resolveIsUK(d, name), mapWrap, width, true)
         event.stopPropagation()
       })
       .on('touchstart', function(event, d) {
@@ -1691,7 +1683,7 @@ function buildMap(attempt = 0) {
           x: touch.clientX,
           y: touch.clientY,
           time: Date.now(),
-          name: d.properties && d.properties.name,
+          name: resolveName(d),
         }
       }, { passive: true })
       .on('touchend', function(event, d) {
@@ -1702,16 +1694,55 @@ function buildMap(attempt = 0) {
         const dx = Math.abs(touch.clientX - start.x)
         const dy = Math.abs(touch.clientY - start.y)
         const dt = Date.now() - start.time
-        // Movement >10px or duration >400ms = drag, not tap. Let d3-zoom handle it.
         if (dx > 10 || dy > 10 || dt > 400) return
         event.preventDefault()
         event.stopPropagation()
-        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY }
-        const isUK = start.name === 'United Kingdom'
         tooltipSticky = true
         window._currentTooltipCountry = start.name
-        showTooltip(fakeEvent, start.name, isUK, mapWrap, width, true)
+        showTooltip(
+          { clientX: touch.clientX, clientY: touch.clientY },
+          start.name,
+          resolveIsUK(d, start.name),
+          mapWrap,
+          width,
+          true
+        )
       }, { passive: false })
+  }
+
+  Promise.all([
+    d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json'),
+    d3.json('uk-nations.geojson'),
+  ]).then(([world, ukGeo]) => {
+    const features = topojson.feature(world, world.objects.countries).features
+      .filter(d => d.properties && d.properties.name !== 'Antarctica')
+    window._worldFeatures = features
+    window._ukNationFeatures = ukGeo.features
+    const mapFeatures = features.filter(d => d.properties && d.properties.name !== 'United Kingdom')
+    svgPaths = g.selectAll('path.country').data(mapFeatures).join('path')
+      .attr('class', 'country')
+      .attr('d', path)
+      .attr('stroke', 'rgba(255,255,255,0.06)')
+      .attr('stroke-width', 0.4)
+      .attr('fill', '#1e1e1e')
+      .attr('cursor', 'pointer')
+    attachCountryEvents(
+      svgPaths,
+      d => d.properties && d.properties.name,
+      (d, name) => name === 'United Kingdom'
+    )
+    ukPaths = g.selectAll('path.uk-nation').data(ukGeo.features).join('path')
+      .attr('class', 'country uk-nation')
+      .attr('d', path)
+      .attr('stroke', 'rgba(255,255,255,0.06)')
+      .attr('stroke-width', 0.4)
+      .attr('fill', '#1e1e1e')
+      .attr('cursor', 'pointer')
+    attachCountryEvents(
+      ukPaths,
+      d => d.properties && d.properties.name,
+      () => false
+    )
     if (!window._tooltipTouchDismiss) {
       window._tooltipTouchDismiss = true
       const tooltipEl = document.getElementById('tooltip')
@@ -1744,7 +1775,13 @@ function buildMap(attempt = 0) {
       const nation = nations.find(n => n.iso2 === iso2.toUpperCase())
       const lookupName = isUK ? 'United Kingdom' : (nation ? nation.name : null)
       if (!lookupName) return
-      const feature = features.find(f => f.properties && f.properties.name === lookupName)
+      let feature = null
+      if (isUK && iso2.startsWith('GB-') && window._ukNationFeatures) {
+        feature = window._ukNationFeatures.find(f => f.properties && f.properties.iso2 === iso2.toUpperCase())
+      }
+      if (!feature) {
+        feature = features.find(f => f.properties && f.properties.name === lookupName)
+      }
       if (!feature) return
       const [[x0, y0], [x1, y1]] = path.bounds(feature)
       const dx = x1 - x0, dy = y1 - y0
