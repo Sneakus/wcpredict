@@ -761,6 +761,16 @@ body {
   display: inline-block;
 }
 
+.country-flag {
+  width: 24px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 6px;
+  display: inline-block;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
 #tournament-selected {
   margin-top: 16px;
   font-size: 15px;

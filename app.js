@@ -77,6 +77,13 @@ function flagToTwemojiUrl(flag) {
   return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${codepoints}.png`
 }
 
+// Returns an <img> tag for a country flag by ISO2 code (e.g. 'NG', 'FR')
+// or subdivision code (e.g. 'GB-ENG', 'GB-WLS').
+function countryFlagImg(code) {
+  if (!code) return ''
+  return `<img src="https://flagcdn.com/h60/${code.toLowerCase()}.png" class="country-flag" alt="">`
+}
+
 WC_TEAMS.forEach(t => TEAM_COLORS[t.name] = t.color)
 
 function autofillCountryFromIP() {
@@ -1129,7 +1136,7 @@ function buildTooltipUK() {
   if (!hasAnyData) return '<div class="no-data">No predictions yet from the UK</div>'
   return UK_NATIONS.map(nation => {
     const nd = nationData[nation.iso]
-    const flag = getFlagEmoji(nation.iso)
+    const flag = countryFlagImg(nation.iso)
     if (!nd) {
       return `<div class="tt-uk-nation">
         <div class="tt-uk-label">${flag} ${nation.name}</div>
@@ -1190,7 +1197,12 @@ function showTooltip(event, name, isUK, mapWrap, width, showAll) {
   const rect = mapWrap.getBoundingClientRect()
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
-  tooltip.querySelector('.tt-country').textContent = isUK ? '🇬🇧 United Kingdom' : name
+  const countryEl = tooltip.querySelector('.tt-country')
+  if (isUK) {
+    countryEl.innerHTML = `${countryFlagImg('GB')} United Kingdom`
+  } else {
+    countryEl.innerHTML = `${countryFlagImg(resolveIso(name))} ${name}`
+  }
   document.getElementById('tt-body').innerHTML = isUK
     ? buildTooltipUK()
     : (() => {
