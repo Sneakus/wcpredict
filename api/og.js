@@ -118,10 +118,14 @@ export default async function handler(req) {
   const teamColor = topPick ? ensureVisible(TEAM_COLORS[topPick] || '#378ADD') : '#378ADD'
   const flagUrl = `https://flagcdn.com/h240/${iso2.toLowerCase()}.png`
 
-  const teamFontSize = !topPick ? 64
+  const countryFontSize = countryName.length > 16 ? 76
+    : countryName.length > 11 ? 82
+    : 90
+
+  const teamFontSize = !topPick ? 76
     : topPick.length > 16 ? 76
-    : topPick.length > 11 ? 110
-    : 152
+    : topPick.length > 11 ? 82
+    : 90
 
   const tree = h('div', {
     style: {
@@ -135,38 +139,39 @@ export default async function handler(req) {
     }
   },
     h('div', {
-      style: { display: 'flex', alignItems: 'center', marginBottom: '24px' }
+      style: { display: 'flex', alignItems: 'center', marginBottom: '20px' }
     },
-      h('img', { src: flagUrl, height: 90, style: { borderRadius: '6px', marginRight: '24px' } }),
-      h('div', { style: { fontSize: 64, fontWeight: 700, lineHeight: 1 } }, countryName)
+      h('img', { src: flagUrl, height: 72, style: { borderRadius: '6px', marginRight: '20px' } }),
+      h('div', { style: { fontSize: countryFontSize, fontWeight: 700, lineHeight: 1 } }, countryName)
     ),
 
     topPick
-      ? h('div', { style: { fontSize: 32, color: '#888', marginBottom: '12px' } }, 'backs')
-      : null,
+      ? h('div', {
+          style: {
+            fontSize: 220,
+            fontWeight: 900,
+            lineHeight: 1,
+            marginBottom: '16px',
+            textAlign: 'center',
+          }
+        }, `${pct}%`)
+      : h('div', {
+          style: { fontSize: 64, fontWeight: 700, color: '#888', marginBottom: '16px' }
+        }, 'No votes yet — be the first.'),
 
     topPick
       ? h('div', {
           style: {
             fontSize: teamFontSize,
-            fontWeight: 900,
-            lineHeight: 1.05,
-            color: teamColor,
-            marginBottom: '32px',
+            fontWeight: 700,
+            lineHeight: 1.15,
             textAlign: 'center',
             maxWidth: '1080px',
           }
-        }, topPick)
-      : h('div', {
-          style: { fontSize: 64, fontWeight: 700, color: '#888', marginTop: '20px' }
-        }, 'No votes yet — be the first.'),
-
-    topPick
-      ? h('div', { style: { display: 'flex', alignItems: 'baseline' } },
-          h('div', { style: { fontSize: 56, fontWeight: 700 } }, `${pct}%`),
-          h('div', { style: { fontSize: 28, color: '#888', marginLeft: '20px' } },
-            `${totalVotes.toLocaleString()} ${totalVotes === 1 ? 'vote' : 'votes'}`
-          )
+        },
+          h('span', { style: { color: '#888', fontWeight: 500 } }, 'backs '),
+          h('span', { style: { color: teamColor } }, topPick),
+          h('span', { style: { color: '#888', fontWeight: 500 } }, ' to win')
         )
       : null,
 
@@ -174,11 +179,15 @@ export default async function handler(req) {
       style: {
         position: 'absolute',
         bottom: '32px',
-        fontSize: 26,
-        color: '#888',
-        fontWeight: 600,
+        left: 0,
+        right: 0,
+        textAlign: 'center',
+        fontSize: 36,
+        color: 'rgba(255,255,255,0.45)',
+        fontWeight: 500,
+        padding: '0 60px',
       }
-    }, 'worldcupmap.io')
+    }, 'Where does the world stand? worldcupmap.io')
   )
 
   return new ImageResponse(tree, {

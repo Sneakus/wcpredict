@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   }
 
   const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const ogCacheBust = '20260604'
 
   const title = topPick
     ? `${countryName} backs ${topPick} — World Cup Map`
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     ? `${pct}% of ${countryName} backs ${topPick} to win the 2026 World Cup. Add your pick and see where your country stands.`
     : `See how every nation is predicting the 2026 World Cup. Add your pick to the global map.`
 
-  const ogImageUrl = `https://worldcupmap.io/api/og?country=${iso2}&v=${today}`
+  const ogImageUrl = `https://worldcupmap.io/api/og?country=${iso2}&v=${ogCacheBust}`
   const pageUrl = `https://worldcupmap.io/${iso2.toLowerCase()}`
 
   let html = indexHtml || '<!doctype html><html><body>Loading…</body></html>'
