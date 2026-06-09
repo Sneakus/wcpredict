@@ -179,7 +179,7 @@ export default async function handler(req) {
         marginTop: '40px',
       }
     },
-      h('div', { style: { fontSize: 40, color: '#888', fontWeight: 500, marginBottom: '6px' } }, 'Where does the world stand?'),
+      h('div', { style: { fontSize: 40, color: '#888', fontWeight: 500, marginBottom: '6px' } }, 'What does the rest of the world think?'),
       h('div', { style: { fontSize: 26, color: '#888', fontWeight: 600 } }, 'worldcupmap.io')
     )
   )
