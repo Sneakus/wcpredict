@@ -678,17 +678,6 @@ function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) 
   ctx.stroke(p2d)
 }
 
-function buildLandscapeCard(portraitCanvas) {
-  const lc = document.createElement('canvas')
-  lc.width = 1200
-  lc.height = 630
-  const lctx = lc.getContext('2d')
-  const scale = 1200 / portraitCanvas.width
-  lctx.drawImage(portraitCanvas, 0, -portraitCanvas.height * scale * 0.1,
-    portraitCanvas.width * scale, portraitCanvas.height * scale)
-  return lc
-}
-
 async function generateShareCard(iso2) {
   if (!tournamentWinner) return
   const nd = nationData[iso2]
@@ -746,7 +735,7 @@ async function generateShareCard(iso2) {
 
   let globalLine = ''
   if (isContrarian && hasEnoughData && myPct !== null && myPct < 30) {
-    globalLine = `Think your country's got it wrong? Prove it at worldcupmap.io`
+    globalLine = `Bold pick? Add yours to the map · worldcupmap.io`
   } else if (hasEnoughData && countryTopPct !== null && countryTopPct >= 60 && !isContrarian) {
     globalLine = `${nationDisplayName} is united 🌍 — are you?`
   } else if (hasAccData) {
@@ -928,68 +917,39 @@ function closeShareModal() {
   document.getElementById('share-modal').style.display = 'none'
 }
 
-function getShareUrl() {
-  const iso2 = getCookie('wcp_country')
-  if (!iso2) return 'https://worldcupmap.io'
-  return `https://worldcupmap.io/${iso2.toLowerCase()}`
+async function shareCard(blob, intent) {
+  // intent: 'stories' | 'whatsapp'
+  const text = "Who do you back to win the 2026 World Cup? worldcupmap.io"
+  const file = new File([blob], 'worldcupmap-prediction.png', { type: 'image/png' })
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text })
+      return
+    } catch (err) {
+      if (err.name === 'AbortError') return
+      // fall through to download
+    }
+  }
+  // Fallback: download the image
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'worldcupmap-prediction.png'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 async function shareCardStories() {
   const canvas = document.getElementById('share-canvas')
-  canvas.toBlob(async (blob) => {
-    const file = new File([blob], 'worldcupmap.jpg', { type: 'image/jpeg' })
-    const url = getShareUrl()
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          text: `See how every country is picking the 2026 World Cup winner 🌍 ${url}`,
-        })
-      } catch (e) {
-        if (e.name !== 'AbortError') downloadCardStories()
-      }
-    } else {
-      downloadCardStories()
-    }
-  }, 'image/jpeg', 0.85)
+  canvas.toBlob(blob => shareCard(blob, 'stories'), 'image/png')
 }
 
 async function shareCardWhatsApp() {
-  const portrait = document.getElementById('share-canvas')
-  const landscape = buildLandscapeCard(portrait)
-  landscape.toBlob(async (blob) => {
-    const file = new File([blob], 'worldcupmap-whatsapp.jpg', { type: 'image/jpeg' })
-    const url = getShareUrl()
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          text: `See how every country is picking the 2026 World Cup winner 🌍 ${url}`,
-        })
-      } catch (e) {
-        if (e.name !== 'AbortError') downloadCardWhatsApp()
-      }
-    } else {
-      downloadCardWhatsApp()
-    }
-  }, 'image/jpeg', 0.85)
-}
-
-function downloadCardStories() {
   const canvas = document.getElementById('share-canvas')
-  const a = document.createElement('a')
-  a.download = 'worldcupmap.jpg'
-  a.href = canvas.toDataURL('image/jpeg', 0.85)
-  a.click()
-}
-
-function downloadCardWhatsApp() {
-  const portrait = document.getElementById('share-canvas')
-  const landscape = buildLandscapeCard(portrait)
-  const a = document.createElement('a')
-  a.download = 'worldcupmap-whatsapp.jpg'
-  a.href = landscape.toDataURL('image/jpeg', 0.85)
-  a.click()
+  canvas.toBlob(blob => shareCard(blob, 'whatsapp'), 'image/png')
 }
 
 function updatePickPromptVisibility() {

@@ -1086,6 +1086,24 @@ body {
 
 #share-btn {
   flex: 1;
+  background: linear-gradient(135deg, #833AB4 0%, #E1306C 100%);
+  color: #fff;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 44px;
+}
+
+#share-btn:hover {
+  background: linear-gradient(135deg, #6f2f9a 0%, #c7285e 100%);
+}
+
+#download-btn {
+  flex: 1;
   background: #25D366;
   color: #fff;
   border: none;
@@ -1098,23 +1116,7 @@ body {
   min-height: 44px;
 }
 
-#share-btn:hover { opacity: 0.88; }
-
-#download-btn {
-  flex: 1;
-  background: transparent;
-  color: rgba(255,255,255,0.6);
-  border: 0.5px solid rgba(255,255,255,0.2);
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  min-height: 44px;
-}
-
-#download-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+#download-btn:hover { background: #1fb855; }
 
 #share-modal-skip {
   font-size: 12px;
