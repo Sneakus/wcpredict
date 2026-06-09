@@ -1491,8 +1491,9 @@ function buildMap() {
     .attr('width', '100%')
     .style('cursor', 'grab')
   const projection = d3.geoNaturalEarth1()
-    .scale(isMobile ? width / 4.2 : width / 6.3)
+    .scale(isMobile ? width / 5.0 : width / 6.3)
     .translate([width / 2, height / 2.1])
+    .rotate([-10, 0])
   const path = d3.geoPath(projection)
   mapProjection = projection
   window._countryPaths = null
