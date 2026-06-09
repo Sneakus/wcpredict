@@ -1635,7 +1635,7 @@ function buildMap(attempt = 0) {
   let tooltipSticky = false
 
   const zoom = d3.zoom()
-    .scaleExtent([1, 16])
+    .scaleExtent(isMobile ? [1, 32] : [1, 16])
     .translateExtent([[0,0],[width,height]])
     .on('zoom', event => {
       g.attr('transform', event.transform)
