@@ -709,7 +709,7 @@ async function generateShareCard(iso2) {
       ? `of ${nationDisplayName} is with me`
       : `Be one of the first from ${nationDisplayName} on the map`
   } else if (isContrarian && hasEnoughData && myPct !== null && myPct < 30) {
-    tagline = `Bold call 🔥 — only ${myPct}% of ${nationDisplayName} agrees`
+    tagline = 'Bold call 🔥'
     statBig = `${myPct}%`
     statSub = `of ${nationDisplayName} agrees with me 👀`
   } else {
