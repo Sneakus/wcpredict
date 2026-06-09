@@ -174,11 +174,17 @@ export default async function handler(req) {
       style: {
         position: 'absolute',
         bottom: '32px',
-        fontSize: 26,
-        color: '#888',
-        fontWeight: 600,
+        left: 0,
+        right: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
       }
-    }, 'worldcupmap.io')
+    },
+      h('div', { style: { fontSize: 40, color: '#888', fontWeight: 500, marginBottom: '6px' } }, 'Where does the world stand?'),
+      h('div', { style: { fontSize: 26, color: '#888', fontWeight: 600 } }, 'worldcupmap.io')
+    )
   )
 
   return new ImageResponse(tree, {
