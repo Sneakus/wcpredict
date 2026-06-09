@@ -846,9 +846,8 @@ body {
     min-height: 420px;
   }
 
-  #map,
-  #map svg {
-    height: 100%;
+  #map {
+    width: 100%;
   }
 
   .sub {

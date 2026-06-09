@@ -1224,6 +1224,43 @@ function switchView(view, btn) {
   updateMapColors()
 }
 
+function resetDotClipCache(width, height) {
+  window._countryPaths = null
+  if (window._clipCanvas && width && height) {
+    window._clipCanvas.width = width
+    window._clipCanvas.height = height
+  }
+}
+
+function getMapDimensions(attempt = 0) {
+  const mapWrap = document.getElementById('map-wrap')
+  const container = document.getElementById('map')
+  const isMobile = window.innerWidth < 640
+  const width = Math.round(container?.offsetWidth || mapWrap?.offsetWidth || 800)
+  let height
+  if (isMobile) {
+    const wrapH = Math.round(mapWrap?.getBoundingClientRect().height || 0)
+    if (wrapH < 100 && attempt < 8) return null
+    height = Math.max(420, wrapH || Math.round(window.innerHeight * 0.65))
+  } else {
+    height = Math.round(width * 0.52)
+  }
+  return { width, height, isMobile }
+}
+
+function syncDotCanvasToMap() {
+  const canvas = document.getElementById('dot-canvas')
+  const svg = document.querySelector('#map svg')
+  const mapWrap = document.getElementById('map-wrap')
+  if (!canvas || !svg || !mapWrap) return
+  const svgRect = svg.getBoundingClientRect()
+  const wrapRect = mapWrap.getBoundingClientRect()
+  canvas.style.top = `${svgRect.top - wrapRect.top}px`
+  canvas.style.left = `${svgRect.left - wrapRect.left}px`
+  canvas.style.width = `${svgRect.width}px`
+  canvas.style.height = `${svgRect.height}px`
+}
+
 function initWebGL(width, height) {
   const canvas = document.getElementById('dot-canvas')
   if (!canvas) return
@@ -1299,9 +1336,12 @@ function uploadDotBuffers() {
   // Off-screen canvas for isPointInPath boundary checking
   if (!window._clipCanvas) {
     window._clipCanvas = document.createElement('canvas')
+    window._clipCtx = window._clipCanvas.getContext('2d')
+  }
+  if (window._clipCanvas.width !== glWidth || window._clipCanvas.height !== glHeight) {
     window._clipCanvas.width = glWidth
     window._clipCanvas.height = glHeight
-    window._clipCtx = window._clipCanvas.getContext('2d')
+    window._countryPaths = null
   }
   const clipCtx = window._clipCtx
 
@@ -1485,22 +1525,26 @@ async function pollNewPulses() {
   }
 }
 
-function buildMap() {
+function buildMap(attempt = 0) {
   const container = document.getElementById('map')
   if (!container) return
-  container.innerHTML = ''
-  const width = container.offsetWidth || container.parentElement?.offsetWidth || 800
-  if (!width) {
-    requestAnimationFrame(buildMap)
+  const dims = getMapDimensions(attempt)
+  if (!dims) {
+    requestAnimationFrame(() => buildMap(attempt + 1))
     return
   }
-  const isMobile = window.innerWidth < 640
-  const height = isMobile
-    ? Math.max(420, container.offsetHeight || Math.round(window.innerHeight * 0.65))
-    : Math.round(width * 0.52)
+  const { width, height, isMobile } = dims
+  if (!width) {
+    requestAnimationFrame(() => buildMap(attempt + 1))
+    return
+  }
+  container.innerHTML = ''
+  container.style.height = height + 'px'
   const svg = d3.select('#map').append('svg')
     .attr('viewBox', `0 0 ${width} ${height}`)
     .attr('width', '100%')
+    .attr('height', height)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
     .style('cursor', 'grab')
   const projection = d3.geoNaturalEarth1()
     .scale(isMobile ? width / 5.0 : width / 6.3)
@@ -1508,9 +1552,10 @@ function buildMap() {
     .rotate([-10, 0])
   const path = d3.geoPath(projection)
   mapProjection = projection
-  window._countryPaths = null
-  // Init WebGL dot canvas
+  resetDotClipCache(width, height)
+  // Init WebGL dot canvas — must match SVG viewBox pixel dimensions
   initWebGL(width, height)
+  syncDotCanvasToMap()
 
   const mapWrap = document.getElementById('map-wrap')
   const tooltip = document.getElementById('tooltip')
@@ -1620,6 +1665,11 @@ function buildMap() {
       })
     }
     updateMapColors()
+    syncDotCanvasToMap()
+    if (dotPoints.length > 0) {
+      uploadDotBuffers()
+      redrawDots()
+    }
 
     // Pre-zoom to visitor's country on mobile + cold landing
     function preZoomToCountry(iso2) {
