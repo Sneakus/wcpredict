@@ -348,7 +348,7 @@ async function loadNations() {
   nations.forEach(n => {
     const opt = document.createElement('option')
     opt.value = n.iso2
-    opt.textContent = `${n.flag_emoji} ${n.name}`
+    opt.textContent = n.name
     sel.appendChild(opt)
   })
   const savedCountry = getCookie('wcp_country')
