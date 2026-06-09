@@ -121,6 +121,10 @@ const GB_SUBDIVISION_WEIGHTS = [
 ]
 
 const COUNTRY_NAME_TO_ISO = {
+  'England':                    'GB-ENG',
+  'Scotland':                   'GB-SCT',
+  'Wales':                      'GB-WLS',
+  'Northern Ireland':           'GB-NIR',
   'United Kingdom':             '__UK__',
   'United States of America':   'US',
   'United States':              'US',
