@@ -1,0 +1,33 @@
+{
+  "validTeams": [
+    "Argentina", "Algeria", "Australia", "Austria", "Belgium",
+    "Bosnia and Herzegovina", "Brazil", "Canada", "Cape Verde", "Colombia",
+    "Croatia", "Czechia", "Curaçao", "DR Congo", "Ecuador", "Egypt",
+    "England", "France", "Germany", "Ghana", "Haiti", "Iran", "Iraq",
+    "Ivory Coast", "Japan", "Jordan", "Mexico", "Morocco", "Netherlands",
+    "New Zealand", "Norway", "Panama", "Paraguay", "Portugal", "Qatar",
+    "Saudi Arabia", "Scotland", "Senegal", "South Africa", "South Korea",
+    "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Uruguay",
+    "USA", "Uzbekistan"
+  ],
+  "teamColors": {
+    "Argentina": "#75AADB", "Algeria": "#006633", "Australia": "#FFD700",
+    "Austria": "#ED2939", "Belgium": "#ED1C24", "Bosnia and Herzegovina": "#1A3A7A",
+    "Brazil": "#639922", "Canada": "#D80621", "Cape Verde": "#143C8B",
+    "Colombia": "#F6C000", "Croatia": "#E1261C", "Czechia": "#1A4FA0",
+    "Curaçao": "#0072CE", "DR Congo": "#4FB6E8", "Ecuador": "#F2A900",
+    "Egypt": "#CE1126", "England": "#EFEFEF", "France": "#185FA5",
+    "Germany": "#888780", "Ghana": "#006B3F", "Haiti": "#00209F",
+    "Iran": "#239F40", "Iraq": "#1B5E20", "Ivory Coast": "#FF8200",
+    "Japan": "#16348C", "Jordan": "#111827", "Mexico": "#006847",
+    "Morocco": "#C1272D", "Netherlands": "#EC6608", "New Zealand": "#1A1A1A",
+    "Norway": "#BA0C2F", "Panama": "#002B7F", "Paraguay": "#C8102E",
+    "Portugal": "#A4123F", "Qatar": "#8A1538", "Saudi Arabia": "#006C35",
+    "Scotland": "#13315C", "Senegal": "#00853F", "South Africa": "#FFB81C",
+    "South Korea": "#CD2E3A", "Spain": "#C60B1E", "Sweden": "#006AA7",
+    "Switzerland": "#DA291C", "Tunisia": "#E70013", "Turkey": "#E30A17",
+    "Uruguay": "#2F7DC2", "USA": "#1B2A4A", "Uzbekistan": "#0A4595"
+  },
+  "supabaseUrl": "https://qkjkvqyoulctqatdultz.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFramt2cXlvdWxjdHFhdGR1bHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDkwNzksImV4cCI6MjA5NTk4NTA3OX0.ojhzBHpmxqNZ3xphaojhHn0oO9YJT0QRuN634xgLZ3k"
+}
