@@ -50,6 +50,11 @@ SUBTEXT = "#b8b8b8"
 MAP_BG = "#0a0a0a"
 NO_DATA_FILL = "#1e1e1e"
 
+# WC nations that always render in kit colour on the OG map (not majority pick)
+HOME_NATION_TEAMS = {
+    "CA": "Canada",
+}
+
 NE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "master/geojson/ne_110m_admin_0_countries.geojson"
@@ -291,6 +296,11 @@ def main() -> None:
     config = load_config(script_dir)
 
     live_fills = fetch_prediction_fills(config)
+    team_colors = config["teamColors"]
+    for iso, team in HOME_NATION_TEAMS.items():
+        if team in team_colors:
+            live_fills[iso] = team_colors[team]
+
     uk_preview = {iso: live_fills.get(iso, NO_DATA_FILL) for iso in (
         "GB-ENG", "GB-SCT", "GB-WLS", "GB-NIR"
     )}
