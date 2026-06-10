@@ -142,7 +142,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Local-only files — never commit
+# Local-only files - never commit
 seed_predictions.py
 generate_cities.py
 .env

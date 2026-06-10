@@ -17,7 +17,7 @@ TEAM_COLORS = {
     "USA": "#888780",  # OG uses grey for host nation
 }
 
-# All 48 WC 2026 teams — kit-inspired colours for teams outside the live legend
+# All 48 WC 2026 teams - kit-inspired colours for teams outside the live legend
 WC_TEAM_COLORS = {
     **TEAM_COLORS,
     "Mexico": "#006847",

@@ -97,7 +97,7 @@ function autofillCountryFromIP() {
       if (!country) return
       // Try exact match first
       let opt = select.querySelector(`option[value="${country}"]`)
-      // UK visitors land as plain "GB" — fall back to England as the default subdivision
+      // UK visitors land as plain "GB" - fall back to England as the default subdivision
       if (!opt && country === 'GB') {
         opt = select.querySelector(`option[value="GB-ENG"]`)
       }
@@ -396,7 +396,7 @@ function showRoundBanner(round) {
   const banner = document.createElement('div')
   banner.id = 'round-banner'
   banner.innerHTML = `
-    <span>🏆 ${label} — re-pick your World Cup winner</span>
+    <span>🏆 ${label} - re-pick your World Cup winner</span>
     <button onclick="document.getElementById('round-banner').remove(); scrollToPredict()">Pick now</button>
   `
   document.getElementById('app').insertBefore(banner, document.getElementById('map-wrap'))
@@ -615,7 +615,7 @@ async function submitPredictions() {
   const iso2 = document.getElementById('country-select').value
   if (!iso2) { alert('Please select your country first'); return }
   if (!tournamentWinner && Object.keys(picks).length === 0) {
-    alert('Please make at least one prediction — who wins the World Cup, or a match result')
+    alert('Please make at least one prediction - who wins the World Cup, or a match result')
     return
   }
   const btn = document.getElementById('submit-btn')
@@ -821,7 +821,7 @@ async function generateShareCard(iso2) {
   let statSub = ''
 
   if (isSelfPick) {
-    tagline = `Home pride 🏠 — I'm backing ${tournamentWinner}`
+    tagline = `Home pride 🏠 - I'm backing ${tournamentWinner}`
     statBig = hasEnoughData && countryTopPct !== null ? `${countryTopPct}%` : ''
     statSub = hasEnoughData
       ? `of ${nationDisplayName} is with me`
@@ -836,7 +836,7 @@ async function generateShareCard(iso2) {
       statBig = `${myPct}%`
       statSub = myPct >= 50
         ? `of ${nationDisplayName} agrees with me`
-        : `of ${nationDisplayName} is with me — the rest are missing out`
+        : `of ${nationDisplayName} is with me - the rest are missing out`
     } else {
       statBig = ''
       statSub = `Be one of the first from ${nationDisplayName} on the map`
@@ -855,7 +855,7 @@ async function generateShareCard(iso2) {
   if (isContrarian && hasEnoughData && myPct !== null && myPct < 30) {
     globalLine = `Bold pick? Add yours to the map · worldcupmap.io`
   } else if (hasEnoughData && countryTopPct !== null && countryTopPct >= 60 && !isContrarian) {
-    globalLine = `${nationDisplayName} is united 🌍 — are you?`
+    globalLine = `${nationDisplayName} is united 🌍 - are you?`
   } else if (hasAccData) {
     if (accRank === 1) {
       globalLine = `${nationDisplayName} leads the world. Can anyone top us? 👀`
@@ -915,11 +915,11 @@ async function generateShareCard(iso2) {
   ctx.textAlign = 'center'
   ctx.fillText('WORLD CUP MAP 2026', W/2, 80)
 
-  // Country shape with dots — hero visual, centred in top half
+  // Country shape with dots - hero visual, centred in top half
   const shapeSize = 820
   drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75)
 
-  // Two flags + "backs" relationship — the hero message
+  // Two flags + "backs" relationship - the hero message
   const fSize = 96
   const startX = W/2 - 220
 
@@ -1247,7 +1247,7 @@ function buildTooltipWC(nd, name, showAll) {
     </div>`
   }).join('')
   if (!showAll && allSorted.length > 5) {
-    html += `<div style="font-size:12px;opacity:0.45;text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">+ ${allSorted.length - 5} more teams — click to expand</div>`
+    html += `<div style="font-size:12px;opacity:0.45;text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">+ ${allSorted.length - 5} more teams - click to expand</div>`
   }
   return html
 }
@@ -1427,7 +1427,7 @@ function initWebGL(width, height) {
   gl = canvas.getContext('webgl', { premultipliedAlpha: false, alpha: true })
   if (!gl) { console.warn('WebGL not supported, falling back'); return }
 
-  // Vertex shader — applies D3 zoom transform, outputs position
+  // Vertex shader - applies D3 zoom transform, outputs position
   const vertSrc = `
     attribute vec2 aPos;
     attribute vec3 aCol;
@@ -1445,7 +1445,7 @@ function initWebGL(width, height) {
     }
   `
 
-  // Fragment shader — LED look: white-hot core + colored halo
+  // Fragment shader - LED look: white-hot core + colored halo
   const fragSrc = `
     precision mediump float;
     varying vec3 vCol;
@@ -1478,7 +1478,7 @@ function initWebGL(width, height) {
   glWeightBuffer = gl.createBuffer()
 
   gl.enable(gl.BLEND)
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE) // additive blending — the glow effect
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE) // additive blending - the glow effect
   gl.viewport(0, 0, canvas.width, canvas.height)
 }
 
@@ -1714,7 +1714,7 @@ function buildMap(attempt = 0) {
   const path = d3.geoPath(projection)
   mapProjection = projection
   resetDotClipCache(width, height)
-  // Init WebGL dot canvas — must match SVG viewBox pixel dimensions
+  // Init WebGL dot canvas - must match SVG viewBox pixel dimensions
   initWebGL(width, height)
   syncDotCanvasToMap()
 

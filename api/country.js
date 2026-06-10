@@ -99,11 +99,11 @@ export default async function handler(req, res) {
   }
 
   const pct = totalVotes > 0 ? Math.round((topPickVotes / totalVotes) * 100) : 0
-  const ogCacheBust = '20260610'
+  const ogCacheBust = '20260611'
 
   const title = topPick
-    ? `${countryName} backs ${topPick} — World Cup Map`
-    : `${countryName} — World Cup Map`
+    ? `${countryName} backs ${topPick} - World Cup Map`
+    : `${countryName} - World Cup Map`
 
   const description = topPick
     ? `${pct}% of ${countryName} backs ${topPick} to win the 2026 World Cup. Add your pick and see where your country stands.`

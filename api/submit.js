@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       })
     }
   } else if (tournament_winner) {
-    // Tournament winner only — no match picks
+    // Tournament winner only - no match picks
     const ipHash = crypto.createHash('sha256').update(rawIp + 'tournament').digest('hex')
 
     const { data: existing } = await supabase

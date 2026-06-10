@@ -159,7 +159,7 @@ export default async function handler(req) {
         }, topPick)
       : h('div', {
           style: { fontSize: 64, fontWeight: 700, color: '#888', marginTop: '20px' }
-        }, 'No votes yet — be the first.'),
+        }, 'No votes yet - be the first.'),
 
     topPick
       ? h('div', { style: { display: 'flex', alignItems: 'baseline' } },
