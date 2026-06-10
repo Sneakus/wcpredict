@@ -197,6 +197,29 @@ function getFeatureForIso(iso2) {
   }) || null
 }
 
+function mainlandFeature(feature) {
+  if (!feature || !feature.geometry) return feature
+  const { type, coordinates } = feature.geometry
+  if (type === 'Polygon') return feature
+  if (type !== 'MultiPolygon') return feature
+
+  let best = null
+  let bestArea = -1
+  for (const polygon of coordinates) {
+    const partial = {
+      type: 'Feature',
+      properties: feature.properties,
+      geometry: { type: 'Polygon', coordinates: polygon },
+    }
+    const area = d3.geoArea(partial)
+    if (area > bestArea) {
+      bestArea = area
+      best = partial
+    }
+  }
+  return best || feature
+}
+
 let currentView = 'wc'
 let svgPaths = null
 let ukPaths = null
@@ -612,7 +635,8 @@ function hexToRgb01(hex) {
 }
 
 function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) {
-  const feature = getFeatureForIso(iso2)
+  const rawFeature = getFeatureForIso(iso2)
+  const feature = rawFeature ? mainlandFeature(rawFeature) : null
 
   const rawPoints = CITY_PULSES[iso2] || null
   let dots = []
