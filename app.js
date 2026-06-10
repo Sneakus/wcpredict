@@ -189,6 +189,10 @@ const COUNTRY_NAME_TO_ISO = {
 function getFeatureForIso(iso2) {
   if (!window._worldFeatures) return null
   if (iso2 && iso2.startsWith('GB-')) {
+    if (window._ukNationFeatures) {
+      const uk = window._ukNationFeatures.find(f => f.properties && f.properties.iso2 === iso2.toUpperCase())
+      if (uk) return uk
+    }
     return window._worldFeatures.find(f => f.properties && f.properties.name === 'United Kingdom') || null
   }
   return window._worldFeatures.find(f => {
@@ -218,6 +222,80 @@ function mainlandFeature(feature) {
     }
   }
   return best || feature
+}
+
+function shareCardSilhouetteFeature(iso2) {
+  const raw = getFeatureForIso(iso2)
+  return raw ? mainlandFeature(raw) : null
+}
+
+function isDotInsideClipPath(clipCtx, path, x, y, erosion) {
+  if (erosion === 0) {
+    return clipCtx.isPointInPath(path, x, y, 'evenodd')
+  }
+  return clipCtx.isPointInPath(path, x, y, 'evenodd') &&
+    clipCtx.isPointInPath(path, x + erosion, y, 'evenodd') &&
+    clipCtx.isPointInPath(path, x - erosion, y, 'evenodd') &&
+    clipCtx.isPointInPath(path, x, y + erosion, 'evenodd') &&
+    clipCtx.isPointInPath(path, x, y - erosion, 'evenodd')
+}
+
+function getShareCardDots(iso2, projection, pathGen, feature) {
+  const pathStr = pathGen(feature)
+  if (!pathStr) return { dots: [], glowRadius: 8, coreRadius: 1.8 }
+
+  const bounds = pathGen.bounds(feature)
+  const erosion = clipErosionForBounds(bounds)
+  const silW = bounds[1][0] - bounds[0][0]
+  const silH = bounds[1][1] - bounds[0][1]
+  const silArea = Math.max(1, silW * silH)
+
+  if (!window._shareClipCanvas) {
+    window._shareClipCanvas = document.createElement('canvas')
+    window._shareClipCtx = window._shareClipCanvas.getContext('2d')
+  }
+  window._shareClipCanvas.width = 1
+  window._shareClipCanvas.height = 1
+  const clipCtx = window._shareClipCtx
+  const clipPath = new Path2D(pathStr)
+
+  function inside(lng, lat) {
+    const px = projection([lng, lat])
+    if (!px) return false
+    return isDotInsideClipPath(clipCtx, clipPath, px[0], px[1], erosion)
+  }
+
+  const cityPool = CITY_PULSES[iso2]
+  const mapDots = dotPoints.filter(p => p.iso2 === iso2)
+  let candidates = []
+
+  if (mapDots.length >= 20) {
+    candidates = mapDots.map(p => ({
+      lat: p.lat,
+      lng: p.lng,
+      w: p.w != null ? p.w : 0.5,
+    }))
+  } else if (cityPool && cityPool.length > 0) {
+    candidates = cityPool.map(p => ({ lat: p[0], lng: p[1], w: p[2] }))
+  } else {
+    candidates = mapDots.map(p => ({
+      lat: p.lat,
+      lng: p.lng,
+      w: p.w != null ? p.w : 0.5,
+    }))
+  }
+
+  let dots = candidates.filter(p => inside(p.lng, p.lat))
+
+  // If live map dots are sparse inside the silhouette, fill from the full city pool
+  if (dots.length < 30 && cityPool && cityPool.length > dots.length) {
+    candidates = cityPool.map(p => ({ lat: p[0], lng: p[1], w: p[2] }))
+    dots = candidates.filter(p => inside(p.lng, p.lat))
+  }
+  const glowRadius = Math.max(5, Math.min(14, Math.sqrt(silArea / Math.max(dots.length, 1)) * 1.2))
+  const coreRadius = Math.max(1.2, glowRadius * 0.22)
+
+  return { dots, glowRadius, coreRadius, silArea, clipPath, bounds }
 }
 
 let currentView = 'wc'
@@ -634,21 +712,8 @@ function hexToRgb01(hex) {
   return [r, g, b]
 }
 
-function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) {
-  const rawFeature = getFeatureForIso(iso2)
-  const feature = rawFeature ? mainlandFeature(rawFeature) : null
-
-  const rawPoints = CITY_PULSES[iso2] || null
-  let dots = []
-
-  if (rawPoints && rawPoints.length > 0) {
-    const pct = (votePct != null && votePct > 0) ? votePct / 100 : 1.0
-    const maxDots = Math.max(20, Math.round(400 * pct))
-    const sample = rawPoints.length > maxDots
-      ? rawPoints.filter((_, i) => i % Math.ceil(rawPoints.length / maxDots) === 0)
-      : rawPoints
-    dots = sample.map(p => ({ lat: p[0], lng: p[1], w: p[2] }))
-  }
+function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH) {
+  const feature = shareCardSilhouetteFeature(iso2)
 
   if (!feature) {
     ctx.fillStyle = teamColor + 'CC'
@@ -676,25 +741,25 @@ function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) 
 
   ctx.clip(p2d)
 
+  const { dots, glowRadius, coreRadius, silArea } = getShareCardDots(iso2, projection, pathGen, feature)
+
   if (dots.length > 0) {
     dots.forEach(pt => {
       const px = projection([pt.lng, pt.lat])
       if (!px) return
       const alpha = 0.4 + pt.w * 0.6
 
-      // Outer glow
-      const glow = ctx.createRadialGradient(px[0], px[1], 0, px[0], px[1], 8)
+      const glow = ctx.createRadialGradient(px[0], px[1], 0, px[0], px[1], glowRadius)
       glow.addColorStop(0, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},${alpha})`)
       glow.addColorStop(1, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0)`)
       ctx.fillStyle = glow
       ctx.beginPath()
-      ctx.arc(px[0], px[1], 8, 0, Math.PI * 2)
+      ctx.arc(px[0], px[1], glowRadius, 0, Math.PI * 2)
       ctx.fill()
 
-      // Bright core
       ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`
       ctx.beginPath()
-      ctx.arc(px[0], px[1], 1.8, 0, Math.PI * 2)
+      ctx.arc(px[0], px[1], coreRadius, 0, Math.PI * 2)
       ctx.fill()
     })
   } else {
@@ -703,23 +768,22 @@ function drawCountryWithDots(ctx, iso2, teamColor, cx, cy, maxW, maxH, votePct) 
     const bw = bounds[1][0] - bx, bh = bounds[1][1] - by
     let placed = 0
     let attempts = 0
-    const pct2 = (votePct != null && votePct > 0) ? votePct / 100 : 1.0
-    const syntheticTarget = Math.max(10, Math.round(200 * pct2))
-    while (placed < syntheticTarget && attempts < 2000) {
+    const syntheticTarget = Math.max(80, Math.round(silArea / 800))
+    while (placed < syntheticTarget && attempts < 4000) {
       attempts++
       const tx = bx + Math.random() * bw
       const ty = by + Math.random() * bh
       if (ctx.isPointInPath(p2d, tx, ty)) {
-        const glow2 = ctx.createRadialGradient(tx, ty, 0, tx, ty, 8)
+        const glow2 = ctx.createRadialGradient(tx, ty, 0, tx, ty, glowRadius)
         glow2.addColorStop(0, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0.7)`)
         glow2.addColorStop(1, `rgba(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)},0)`)
         ctx.fillStyle = glow2
         ctx.beginPath()
-        ctx.arc(tx, ty, 8, 0, Math.PI * 2)
+        ctx.arc(tx, ty, glowRadius, 0, Math.PI * 2)
         ctx.fill()
         ctx.fillStyle = 'rgba(255,255,255,0.85)'
         ctx.beginPath()
-        ctx.arc(tx, ty, 1.8, 0, Math.PI * 2)
+        ctx.arc(tx, ty, coreRadius, 0, Math.PI * 2)
         ctx.fill()
         placed++
       }
@@ -853,7 +917,7 @@ async function generateShareCard(iso2) {
 
   // Country shape with dots — hero visual, centred in top half
   const shapeSize = 820
-  drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75, myPct)
+  drawCountryWithDots(ctx, iso2, teamColor, W/2, 560, shapeSize, shapeSize * 0.75)
 
   // Two flags + "backs" relationship — the hero message
   const fSize = 96
