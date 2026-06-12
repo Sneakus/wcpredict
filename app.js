@@ -528,6 +528,7 @@ async function loadNationData() {
       iso: n.iso2, name: n.name,
       pick: topPick ? topPick[0] : null,
       acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
+      correct: d.correct,
       matchPicks: d.matchPicks,
       tournamentPicks: d.tournamentPicks,
     }
@@ -539,6 +540,7 @@ async function loadNationData() {
       iso: 'GB', name: 'United Kingdom',
       pick: topPick ? topPick[0] : null,
       acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
+      correct: d.correct,
       matchPicks: d.matchPicks,
       tournamentPicks: d.tournamentPicks,
     }
@@ -871,7 +873,7 @@ async function generateShareCard(iso2) {
 
   const accRanked = Object.values(nationData)
     .filter(d => d.acc !== null)
-    .sort((a, b) => b.acc - a.acc)
+    .sort((a, b) => b.acc - a.acc || (b.correct || 0) - (a.correct || 0))
   const accRankIndex = accRanked.findIndex(d => d.iso === iso2)
   const accRank = accRankIndex >= 0 ? accRankIndex + 1 : null
   const accTotal = accRanked.length
@@ -1171,12 +1173,19 @@ function buildLeaderboards() {
     pickEl.appendChild(toggleBtn)
   }
 
-  const accNations = Object.values(nationData).filter(d=>d.acc!==null).sort((a,b)=>b.acc-a.acc).slice(0,6)
-  if (accNations.length === 0) {
+  const allAccSorted = Object.values(nationData)
+    .filter(d => d.acc !== null)
+    .sort((a, b) => b.acc - a.acc || (b.correct || 0) - (a.correct || 0))
+
+  const topAccRows = allAccSorted.slice(0, 6)
+  const moreAccRows = allAccSorted.slice(6)
+
+  if (topAccRows.length === 0) {
     accEl.innerHTML = '<p class="no-data">Accuracy data available after first match results.</p>'
     return
   }
-  accNations.forEach((d, i) => {
+
+  topAccRows.forEach((d, i) => {
     accEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
       <span class="lb-flag">${getFlagEmoji(d.iso)}</span>
@@ -1185,6 +1194,32 @@ function buildLeaderboards() {
       <span class="lb-val">${d.acc}%</span>
     </div>`
   })
+
+  if (moreAccRows.length > 0) {
+    const moreEl = document.createElement('div')
+    moreEl.id = 'lb-acc-more'
+    moreEl.style.display = 'none'
+    moreAccRows.forEach((d, i) => {
+      moreEl.innerHTML += `<div class="lb-row">
+        <span class="lb-rank">${i+7}</span>
+        <span class="lb-flag">${getFlagEmoji(d.iso)}</span>
+        <span class="lb-name">${d.name}</span>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${d.acc}%;background:#378ADD"></div></div>
+        <span class="lb-val">${d.acc}%</span>
+      </div>`
+    })
+    accEl.appendChild(moreEl)
+
+    const toggleBtn = document.createElement('button')
+    toggleBtn.className = 'lb-show-more'
+    toggleBtn.textContent = `Show ${moreAccRows.length} more`
+    toggleBtn.onclick = () => {
+      const isHidden = moreEl.style.display === 'none'
+      moreEl.style.display = isHidden ? 'block' : 'none'
+      toggleBtn.textContent = isHidden ? 'Show less' : `Show ${moreAccRows.length} more`
+    }
+    accEl.appendChild(toggleBtn)
+  }
 }
 
 function getColorForIso(iso) {
