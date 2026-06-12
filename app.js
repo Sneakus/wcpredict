@@ -322,15 +322,23 @@ let dotPoints = [] // stores {lng, lat, r, g, b} for redraw
 let lastPulseTimestamp = null
 const picks = {}
 
-function getFlagEmoji(iso) {
-  if (!iso) return ''
-  if (iso.startsWith('GB-')) {
-    const map = { 'GB-ENG': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'GB-SCT': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'GB-WLS': '🏴󠁧󠁢󠁷󠁬󠁤󠁿', 'GB-NIR': '🇬🇧' }
-    return map[iso] || '🇬🇧'
+function lbFlagHtml(flagEmoji) {
+  return `<span class="lb-flag"><img src="${flagEmoji ? flagToTwemojiUrl(flagEmoji) : ''}" class="team-flag" alt=""></span>`
+}
+
+function lbFlagHtmlForNationIso(iso) {
+  if (!iso) return '<span class="lb-flag"></span>'
+  const ukNation = UK_NATIONS.find(n => n.iso === iso)
+  if (ukNation) {
+    const flag = WC_TEAMS.find(t => t.name === ukNation.name)?.flag
+    if (flag) return lbFlagHtml(flag)
   }
-  return iso.toUpperCase().split('').map(c =>
-    String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
-  ).join('')
+  const nation = nations.find(n => n.iso2 === iso)
+  if (nation) {
+    const flag = WC_TEAMS.find(t => t.name === nation.name)?.flag
+    if (flag) return lbFlagHtml(flag)
+  }
+  return `<span class="lb-flag"><img src="${isoToTwemojiUrl(iso)}" class="team-flag" alt=""></span>`
 }
 
 function resolveIso(name) {
@@ -1138,7 +1146,7 @@ function buildLeaderboards() {
     const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
     pickEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
-      <span class="lb-flag"><img src="${flag ? flagToTwemojiUrl(flag) : ''}" class="team-flag" alt=""></span>
+      ${lbFlagHtml(flag)}
       <span class="lb-name">${team}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
       <span class="lb-val">${count}</span>
@@ -1154,7 +1162,7 @@ function buildLeaderboards() {
       const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
       moreEl.innerHTML += `<div class="lb-row">
         <span class="lb-rank">${i+9}</span>
-        <span class="lb-flag"><img src="${flag ? flagToTwemojiUrl(flag) : ''}" class="team-flag" alt=""></span>
+        ${lbFlagHtml(flag)}
         <span class="lb-name">${team}</span>
         <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
         <span class="lb-val">${count}</span>
@@ -1188,7 +1196,7 @@ function buildLeaderboards() {
   topAccRows.forEach((d, i) => {
     accEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
-      <span class="lb-flag">${getFlagEmoji(d.iso)}</span>
+      ${lbFlagHtmlForNationIso(d.iso)}
       <span class="lb-name">${d.name}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${d.acc}%;background:#378ADD"></div></div>
       <span class="lb-val">${d.acc}%</span>
@@ -1202,7 +1210,7 @@ function buildLeaderboards() {
     moreAccRows.forEach((d, i) => {
       moreEl.innerHTML += `<div class="lb-row">
         <span class="lb-rank">${i+7}</span>
-        <span class="lb-flag">${getFlagEmoji(d.iso)}</span>
+        ${lbFlagHtmlForNationIso(d.iso)}
         <span class="lb-name">${d.name}</span>
         <div class="bar-wrap"><div class="bar-fill" style="width:${d.acc}%;background:#378ADD"></div></div>
         <span class="lb-val">${d.acc}%</span>
