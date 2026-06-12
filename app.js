@@ -545,6 +545,26 @@ async function loadNationData() {
   }
 }
 
+function isVotableMatch(match, scoredMatchIds) {
+  if (match.locked) return false
+  if (scoredMatchIds.has(match.id)) return false
+  return true
+}
+
+async function filterVotableMatches(matches) {
+  if (!matches?.length) return []
+  const ids = matches.map(m => m.id)
+  const { data: results, error } = await sb.from('match_results')
+    .select('match_id')
+    .in('match_id', ids)
+  if (error) {
+    console.error('filterVotableMatches error:', error)
+    return matches.filter(m => !m.locked)
+  }
+  const scoredIds = new Set((results || []).map(r => r.match_id))
+  return matches.filter(m => isVotableMatch(m, scoredIds))
+}
+
 async function loadTodayMatches() {
   const now = new Date()
   const start = new Date(now); start.setHours(0, 0, 0, 0)
@@ -569,7 +589,10 @@ async function loadTodayMatches() {
     data = result.data || []
   }
 
-  todayMatches = data || []
+  todayMatches = await filterVotableMatches(data || [])
+  for (const matchId of Object.keys(picks)) {
+    if (!todayMatches.some(m => m.id === matchId)) delete picks[matchId]
+  }
   renderMatches()
   updatePickPromptVisibility()
 }
@@ -591,20 +614,23 @@ function renderMatches() {
       minute: '2-digit',
       hour12: false
     })
+    const locked = !!m.locked
+    const lockClass = locked ? ' locked' : ''
+    const lockAttr = locked ? ' disabled' : ''
     el.innerHTML += `<div class="match-row">
       <span class="match-time">${time}</span>
       <span class="match-teams">${m.home_team} vs ${m.away_team}</span>
       <div class="match-pick">
-        <button class="pick-btn${m.locked?' locked':''}" data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
-        <button class="pick-btn${m.locked?' locked':''}" data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
-        <button class="pick-btn${m.locked?' locked':''}" data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
+        <button class="pick-btn${lockClass}"${lockAttr} data-match="${m.id}" data-pick="${m.home_team}" onclick="selectPick(this)">${m.home_team}</button>
+        <button class="pick-btn${lockClass}"${lockAttr} data-match="${m.id}" data-pick="Draw" onclick="selectPick(this)">Draw</button>
+        <button class="pick-btn${lockClass}"${lockAttr} data-match="${m.id}" data-pick="${m.away_team}" onclick="selectPick(this)">${m.away_team}</button>
       </div>
     </div>`
   })
 }
 
 function selectPick(btn) {
-  if (btn.classList.contains('locked')) return
+  if (btn.disabled || btn.classList.contains('locked')) return
   const mi = btn.dataset.match
   document.querySelectorAll(`.pick-btn[data-match="${mi}"]`).forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
@@ -1363,6 +1389,7 @@ function switchView(view, btn) {
   currentView = view
   document.querySelectorAll('.vtab').forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
+  if (view === 'matchday') loadTodayMatches()
   updateMapColors()
 }
 
