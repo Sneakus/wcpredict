@@ -70,11 +70,13 @@ const WC_TEAMS = [
 // Convert flag emoji to a Twemoji PNG URL.
 // Fixes Windows rendering: regional indicator pairs show as letter codes (AR, BR…) on Windows.
 function flagToTwemojiUrl(flag) {
-  const codepoints = Array.from(flag)
-    .map(c => c.codePointAt(0).toString(16))
-    .filter(cp => cp !== 'fe0f')
-    .join('-')
-  return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${codepoints}.png`
+  if (!flag) return ''
+  const codepoints = []
+  for (const char of flag) {
+    const hex = char.codePointAt(0).toString(16)
+    if (hex !== 'fe0f') codepoints.push(hex)
+  }
+  return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${codepoints.join('-')}.png`
 }
 
 // Returns an <img> tag for a country flag by ISO2 code (e.g. 'NG', 'FR')
@@ -323,7 +325,32 @@ let lastPulseTimestamp = null
 const picks = {}
 
 function lbFlagHtml(flagEmoji) {
-  return `<span class="lb-flag"><img src="${flagEmoji ? flagToTwemojiUrl(flagEmoji) : ''}" class="team-flag" alt=""></span>`
+  if (!flagEmoji) return '<span class="lb-flag"></span>'
+  return `<span class="lb-flag"><img src="${flagToTwemojiUrl(flagEmoji)}" class="team-flag" alt=""></span>`
+}
+
+function teamNameToIso(teamName) {
+  if (!teamName) return null
+  const nation = nations.find(n => n.name === teamName)
+  if (nation) return nation.iso2
+  const iso = resolveIso(teamName)
+  if (iso && iso !== '__UK__') return iso
+  const aliases = {
+    USA: 'US',
+    'Korea Republic': 'KR',
+    "Cote d'Ivoire": 'CI',
+    'Costa Rica': 'CR',
+    Peru: 'PE',
+  }
+  return aliases[teamName] || null
+}
+
+function teamFlagHtml(teamName) {
+  const flag = WC_TEAMS.find(t => t.name === teamName)?.flag
+  if (flag) return lbFlagHtml(flag)
+  const iso = teamNameToIso(teamName)
+  if (iso) return lbFlagHtmlForNationIso(iso)
+  return '<span class="lb-flag"></span>'
 }
 
 function lbFlagHtmlForNationIso(iso) {
@@ -709,9 +736,9 @@ function isoToTwemojiUrl(iso2) {
   if (subdivisionFlags[iso2]) {
     return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${subdivisionFlags[iso2]}.png`
   }
-  const points = iso2.toUpperCase().split('').map(c =>
-    (0x1F1E6 + c.charCodeAt(0) - 65).toString(16)
-  )
+  const points = [...iso2.toUpperCase()]
+    .filter(c => c >= 'A' && c <= 'Z')
+    .map(c => (0x1F1E6 + c.charCodeAt(0) - 65).toString(16))
   return `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${points.join('-')}.png`
 }
 
@@ -1143,10 +1170,9 @@ function buildLeaderboards() {
 
   topRows.forEach(([team, count], i) => {
     const color = TEAM_COLORS[team] || '#888'
-    const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
     pickEl.innerHTML += `<div class="lb-row">
       <span class="lb-rank">${i+1}</span>
-      ${lbFlagHtml(flag)}
+      ${teamFlagHtml(team)}
       <span class="lb-name">${team}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
       <span class="lb-val">${count}</span>
@@ -1159,10 +1185,9 @@ function buildLeaderboards() {
     moreEl.style.display = 'none'
     moreRows.forEach(([team, count], i) => {
       const color = TEAM_COLORS[team] || '#888'
-      const flag = WC_TEAMS.find(t => t.name === team)?.flag || ''
       moreEl.innerHTML += `<div class="lb-row">
         <span class="lb-rank">${i+9}</span>
-        ${lbFlagHtml(flag)}
+        ${teamFlagHtml(team)}
         <span class="lb-name">${team}</span>
         <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(count/maxPick*100)}%;background:${color}"></div></div>
         <span class="lb-val">${count}</span>
