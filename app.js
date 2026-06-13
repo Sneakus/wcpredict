@@ -524,7 +524,7 @@ async function loadNationData() {
   while (true) {
     const { data, error } = await sb
       .from('predictions')
-      .select('nation_iso2, match_id, predicted_winner, score')
+      .select('nation_iso2, match_id, predicted_winner, score, created_at')
       .not('match_id', 'is', null)
       .range(from, from + pageSize - 1)
     if (error) { console.error('loadNationData error:', error); return }
@@ -536,7 +536,7 @@ async function loadNationData() {
 
   allTournament.forEach(row => {
     const iso = row.nation_iso2
-    if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, correct: 0, total: 0 }
+    if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, matchPickLatest: {}, correct: 0, total: 0 }
     if (row.predicted_winner) {
       byNation[iso].tournamentPicks[row.predicted_winner] =
         (byNation[iso].tournamentPicks[row.predicted_winner] || 0) + 1
@@ -544,42 +544,30 @@ async function loadNationData() {
   })
   allMatch.forEach(row => {
     const iso = row.nation_iso2
-    if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, correct: 0, total: 0 }
+    if (!byNation[iso]) byNation[iso] = { tournamentPicks: {}, matchPicks: {}, matchPickLatest: {}, correct: 0, total: 0 }
     if (row.match_id) {
       if (!byNation[iso].matchPicks[row.match_id]) byNation[iso].matchPicks[row.match_id] = {}
       byNation[iso].matchPicks[row.match_id][row.predicted_winner] =
         (byNation[iso].matchPicks[row.match_id][row.predicted_winner] || 0) + 1
+      const at = row.created_at ? new Date(row.created_at).getTime() : 0
+      const prev = byNation[iso].matchPickLatest[row.match_id]
+      if (!prev || at >= prev.at) {
+        byNation[iso].matchPickLatest[row.match_id] = { team: row.predicted_winner, at }
+      }
       if (row.score !== null) {
         byNation[iso].total++
         if (row.score === 1) byNation[iso].correct++
       }
     }
   })
+  nationData = {}
   nations.forEach(n => {
     const d = byNation[n.iso2]
-    if (!d) return
-    const topPick = Object.entries(d.tournamentPicks).sort((a,b) => b[1]-a[1])[0]
-    nationData[n.iso2] = {
-      iso: n.iso2, name: n.name,
-      pick: topPick ? topPick[0] : null,
-      acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
-      correct: d.correct,
-      matchPicks: d.matchPicks,
-      tournamentPicks: d.tournamentPicks,
-    }
+    if (d) nationData[n.iso2] = buildNationDataEntry(n.iso2, d)
   })
-  if (byNation['GB'] && !nationData['GB']) {
-    const d = byNation['GB']
-    const topPick = Object.entries(d.tournamentPicks).sort((a, b) => b[1] - a[1])[0]
-    nationData['GB'] = {
-      iso: 'GB', name: 'United Kingdom',
-      pick: topPick ? topPick[0] : null,
-      acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
-      correct: d.correct,
-      matchPicks: d.matchPicks,
-      tournamentPicks: d.tournamentPicks,
-    }
-  }
+  Object.keys(byNation).forEach(iso => {
+    if (!nationData[iso]) nationData[iso] = buildNationDataEntry(iso, byNation[iso])
+  })
 }
 
 function isVotableMatch(match, scoredMatchIds) {
@@ -618,6 +606,7 @@ async function loadMatchdayMatches() {
   }
   renderMatches()
   updatePickPromptVisibility()
+  updateMapColors()
 }
 
 function renderMatches() {
@@ -1241,18 +1230,63 @@ function buildLeaderboards() {
   }
 }
 
+function buildNationDataEntry(iso, d) {
+  const n = nations.find(x => x.iso2 === iso)
+  const topPick = Object.entries(d.tournamentPicks).sort((a, b) => b[1] - a[1])[0]
+  return {
+    iso,
+    name: n?.name || (iso === 'GB' ? 'United Kingdom' : iso),
+    pick: topPick ? topPick[0] : null,
+    acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
+    correct: d.correct,
+    matchPicks: d.matchPicks,
+    matchPickLatest: d.matchPickLatest || {},
+    tournamentPicks: d.tournamentPicks,
+  }
+}
+
+function matchdayMatchIds() {
+  return new Set(todayMatches.map(m => m.id))
+}
+
+function colorForPredictedTeam(team) {
+  if (!team) return null
+  if (team === 'Draw') return 'rgba(136,135,128,0.8)'
+  return TEAM_COLORS[team] ? TEAM_COLORS[team] + 'cc' : null
+}
+
+function getLatestMatchdayPick(nd) {
+  if (!nd?.matchPicks || !todayMatches.length) return null
+  const ids = matchdayMatchIds()
+  let latest = null
+  for (const matchId of ids) {
+    const picks = nd.matchPicks[matchId]
+    if (!picks) continue
+    let team
+    let at
+    const tracked = nd.matchPickLatest?.[matchId]
+    if (tracked) {
+      team = tracked.team
+      at = tracked.at
+    } else {
+      const top = Object.entries(picks).sort((a, b) => b[1] - a[1])[0]
+      if (!top) continue
+      team = top[0]
+      const match = todayMatches.find(m => m.id === matchId)
+      at = match?.kickoff_at ? new Date(match.kickoff_at).getTime() : 0
+    }
+    if (!latest || at > latest.at) latest = { team, at }
+  }
+  return latest?.team ?? null
+}
+
 function getColorForIso(iso) {
   const nd = iso ? nationData[iso] : null
   if (!nd) return null
   if (currentView === 'wc') {
     return nd.pick && TEAM_COLORS[nd.pick] ? TEAM_COLORS[nd.pick] + 'cc' : null
   }
-  if (!todayMatches.length || !nd.matchPicks) return null
-  const mp = nd.matchPicks[todayMatches[0].id]
-  if (!mp) return null
-  const top = Object.entries(mp).sort((a,b)=>b[1]-a[1])[0]
-  if (!top) return null
-  return top[0]==='Draw' ? 'rgba(136,135,128,0.8)' : (TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]]+'cc' : null)
+  return colorForPredictedTeam(getLatestMatchdayPick(nd))
 }
 
 function mergeUKPredictionData() {
@@ -1281,11 +1315,18 @@ function resolveUKColor() {
     return TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]] + 'cc' : null
   }
   if (!todayMatches.length) return null
-  const mp = merged.matchPicks[todayMatches[0].id]
-  if (!mp) return null
-  const top = Object.entries(mp).sort((a, b) => b[1] - a[1])[0]
-  if (!top) return null
-  return top[0] === 'Draw' ? 'rgba(136,135,128,0.8)' : (TEAM_COLORS[top[0]] ? TEAM_COLORS[top[0]] + 'cc' : null)
+  let latest = null
+  for (const matchId of matchdayMatchIds()) {
+    const mp = merged.matchPicks[matchId]
+    if (!mp) continue
+    const top = Object.entries(mp).sort((a, b) => b[1] - a[1])[0]
+    if (!top) continue
+    const match = todayMatches.find(m => m.id === matchId)
+    const at = match?.kickoff_at ? new Date(match.kickoff_at).getTime() : 0
+    if (!latest || at > latest.at) latest = { team: top[0], at }
+  }
+  if (!latest) return null
+  return colorForPredictedTeam(latest.team)
 }
 
 function resolvePulseIso2(iso2) {
@@ -1392,24 +1433,13 @@ function buildTooltipUK() {
         <div class="no-data" style="font-size:10px">No matchday picks open</div>
       </div>`
     }
-    const mp = nd.matchPicks?.[todayMatches[0].id]
-    if (!mp) {
+    const tooltip = buildTooltipMatchday(nd)
+    if (!tooltip || tooltip.includes('No predictions')) {
       return `<div class="tt-uk-nation"><div class="tt-uk-label">${flag} ${nation.name}</div><div class="no-data" style="font-size:10px">No picks yet</div></div>`
     }
-    const entries = Object.entries(mp).sort((a, b) => b[1] - a[1]).slice(0, 1)
-    const total = Object.values(mp).reduce((s, v) => s + v, 0)
-    const m = todayMatches[0]
     return `<div class="tt-uk-nation">
       <div class="tt-uk-label">${flag} ${nation.name}</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:2px">${m.home_team} vs ${m.away_team}</div>
-      ${entries.map(([k, v]) => {
-        const pct = Math.round(v / total * 100)
-        return `<div class="tt-row">
-          <span class="tt-label">${k}</span>
-          <div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:${pct}%;background:${k === 'Draw' ? '#888' : (TEAM_COLORS[k] || '#888')}"></div></div>
-          <span class="tt-val">${pct}% <span style="color:rgba(255,255,255,0.35);font-size:10px">(${v})</span></span>
-        </div>`
-      }).join('')}
+      ${tooltip}
     </div>`
   }).join('<div style="height:1px;background:rgba(255,255,255,0.08);margin:5px 0"></div>')
 }
@@ -1439,12 +1469,16 @@ function showTooltip(event, name, isUK, mapWrap, width, showAll) {
   tooltip.style.top = Math.max(y-70, 4)+'px'
 }
 
-function switchView(view, btn) {
+async function switchView(view, btn) {
   currentView = view
   document.querySelectorAll('.vtab').forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
-  if (view === 'matchday') loadMatchdayMatches()
-  updateMapColors()
+  if (view === 'matchday') {
+    await loadNationData()
+    await loadMatchdayMatches()
+  } else {
+    updateMapColors()
+  }
 }
 
 function clipErosionForBounds(bounds) {
