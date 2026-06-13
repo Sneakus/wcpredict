@@ -602,31 +602,17 @@ async function filterVotableMatches(matches) {
   return matches.filter(m => isVotableMatch(m, scoredIds))
 }
 
-async function loadTodayMatches() {
-  const now = new Date()
-  const start = new Date(now); start.setHours(0, 0, 0, 0)
-  const end = new Date(now); end.setHours(23, 59, 59, 999)
+async function loadMatchdayMatches() {
+  const now = new Date().toISOString()
 
-  // Try today first
-  let { data, error } = await sb.from('matches').select('*')
-    .gte('kickoff_at', start.toISOString())
-    .lte('kickoff_at', end.toISOString())
+  const { data, error } = await sb.from('matches').select('*')
+    .gt('kickoff_at', now)
     .order('kickoff_at')
-  if (error) { console.error('loadTodayMatches error:', error); return }
+    .limit(40)
+  if (error) { console.error('loadMatchdayMatches error:', error); return }
 
-  // If nothing today, show the next upcoming match(es) within 5 days
-  if (!data || data.length === 0) {
-    const lookahead = new Date(now)
-    lookahead.setDate(lookahead.getDate() + 5)
-    const result = await sb.from('matches').select('*')
-      .gt('kickoff_at', now.toISOString())
-      .lte('kickoff_at', lookahead.toISOString())
-      .order('kickoff_at')
-      .limit(3)
-    data = result.data || []
-  }
-
-  todayMatches = await filterVotableMatches(data || [])
+  const votable = await filterVotableMatches(data || [])
+  todayMatches = votable.slice(0, 4)
   for (const matchId of Object.keys(picks)) {
     if (!todayMatches.some(m => m.id === matchId)) delete picks[matchId]
   }
@@ -637,7 +623,7 @@ async function loadTodayMatches() {
 function renderMatches() {
   const el = document.getElementById('matches-list')
   if (todayMatches.length === 0) {
-    el.innerHTML = '<p class="loading">No matches in the next few days.</p>'
+    el.innerHTML = '<p class="loading">No open matchday picks right now.</p>'
     return
   }
   el.innerHTML = ''
@@ -1403,7 +1389,7 @@ function buildTooltipUK() {
     if (!todayMatches.length) {
       return `<div class="tt-uk-nation">
         <div class="tt-uk-label">${flag} ${nation.name}</div>
-        <div class="no-data" style="font-size:10px">No matches today</div>
+        <div class="no-data" style="font-size:10px">No matchday picks open</div>
       </div>`
     }
     const mp = nd.matchPicks?.[todayMatches[0].id]
@@ -1457,7 +1443,7 @@ function switchView(view, btn) {
   currentView = view
   document.querySelectorAll('.vtab').forEach(b => b.classList.remove('active'))
   btn.classList.add('active')
-  if (view === 'matchday') loadTodayMatches()
+  if (view === 'matchday') loadMatchdayMatches()
   updateMapColors()
 }
 
@@ -2135,7 +2121,7 @@ async function init() {
   await loadCurrentRound()
   await loadNations()
   await loadNationData()
-  await loadTodayMatches()
+  await loadMatchdayMatches()
   await loadPredictionCount()
   buildTournamentPicker()
   buildLeaderboards()
