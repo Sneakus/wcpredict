@@ -386,6 +386,7 @@ def main():
                 'match_id': match['id'],
                 'nation_iso2': user['nation_iso2'],
                 'predicted_winner': prediction,
+                'tournament_winner': None,
                 'ip_hash': user['ip_hash'],
                 'fingerprint_hash': user['fingerprint_hash'],
                 'round': 'group_stage',  # script could adapt this for knockouts later
