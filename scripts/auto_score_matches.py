@@ -5,7 +5,7 @@ Runs daily at 06:00 UTC via GitHub Actions.
 Fetches finished matches and inserts results into Supabase.
 The existing on_result_insert trigger handles all prediction scoring automatically.
 
-This version includes step-by-step diagnostic logging to make failures easy to debug.
+Includes step-by-step diagnostic logging for clear failure debugging.
 """
 
 import os
@@ -22,13 +22,17 @@ SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')
 COMPETITION_ID = 'WC'
 
 # Team name mapping: football-data.org name -> AJ's DB name
+# Verified against actual API responses on 2026-06-17
 TEAM_NAME_MAP = {
     'Türkiye': 'Turkey',
     'Czech Republic': 'Czechia',
     'Korea Republic': 'South Korea',
     "Côte d'Ivoire": 'Ivory Coast',
     'Cabo Verde': 'Cape Verde',
+    'Cape Verde Islands': 'Cape Verde',
     'Bosnia & Herzegovina': 'Bosnia and Herzegovina',
+    'Bosnia-Herzegovina': 'Bosnia and Herzegovina',
+    'United States': 'USA',
 }
 
 PLACEHOLDER_KEYWORDS = ['Winner', 'Runner-up', 'Loser']
@@ -63,7 +67,8 @@ def fetch_finished_matches(date_from, date_to):
     return response.json().get('matches', [])
 
 
-def get_unscored_matches_from_db():
+def get_all_matches_from_db():
+    """Fetch all real (non-placeholder) matches with their scored status."""
     matches_url = f'{SUPABASE_URL}/rest/v1/matches'
     params = {'select': 'id,home_team,away_team,kickoff_at,locked'}
     response = requests.get(matches_url, headers=supabase_headers(), params=params, timeout=30)
@@ -78,7 +83,7 @@ def get_unscored_matches_from_db():
     result_response.raise_for_status()
     scored_ids = {r['match_id'] for r in result_response.json()}
 
-    return [m for m in all_matches if m['id'] not in scored_ids]
+    return all_matches, scored_ids
 
 
 def insert_match_result(match_id, winner, home_score, away_score):
@@ -113,7 +118,6 @@ def log_to_automation_log(script_name, status, message, records_processed=0):
 
 
 def fail(step, msg, log_to_db=True):
-    """Print failure marker, optionally log to automation_log, exit with code 1."""
     full_msg = f'FAILED at {step}: {msg}'
     print(f'\n{"=" * 60}')
     print(full_msg)
@@ -129,9 +133,7 @@ def main():
     print(f'Time (UTC): {datetime.now(timezone.utc).isoformat()}')
     print('=' * 60)
 
-    # ---------------------------------------------------------------
-    # STEP 1: Validate environment variables
-    # ---------------------------------------------------------------
+    # STEP 1: env vars
     print('\n[STEP 1] Checking environment variables...')
     env_vars = {
         'FOOTBALL_DATA_API_KEY': FOOTBALL_DATA_API_KEY,
@@ -145,109 +147,91 @@ def main():
         else:
             print(f'  ✗ {name} is MISSING or empty')
             missing.append(name)
-
     if missing:
         fail('STEP 1', f'missing env vars: {missing}', log_to_db=False)
 
-    # Sanity-check SUPABASE_URL format
-    if not SUPABASE_URL.startswith('https://'):
-        print(f'  ⚠ WARNING: SUPABASE_URL does not start with https:// (got: {SUPABASE_URL[:30]}...)')
-    if SUPABASE_URL.endswith('/'):
-        print(f'  ⚠ WARNING: SUPABASE_URL has trailing slash - may cause request issues')
-    try:
-        domain = SUPABASE_URL.split('//')[1].split('/')[0]
-        print(f'  Supabase domain: {domain}')
-    except Exception:
-        print(f'  ⚠ Could not parse Supabase domain from URL')
-
-    # ---------------------------------------------------------------
-    # STEP 2: Test football-data.org API
-    # ---------------------------------------------------------------
+    # STEP 2: football-data.org test
     print('\n[STEP 2] Testing football-data.org API...')
     try:
         url = f'https://api.football-data.org/v4/competitions/{COMPETITION_ID}/matches'
-        headers = {'X-Auth-Token': FOOTBALL_DATA_API_KEY}
-        params = {'status': 'FINISHED'}
-        print(f'  GET {url} (status=FINISHED)')
-        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response = requests.get(
+            url,
+            headers={'X-Auth-Token': FOOTBALL_DATA_API_KEY},
+            params={'status': 'FINISHED'},
+            timeout=30,
+        )
         print(f'  HTTP status: {response.status_code}')
         if response.status_code != 200:
-            print(f'  Response body (first 500 chars): {response.text[:500]}')
+            print(f'  Response body: {response.text[:500]}')
             fail('STEP 2', f'football-data.org returned HTTP {response.status_code}')
-        data = response.json()
-        total = data.get('resultSet', {}).get('count', 0)
-        matches_list = data.get('matches', [])
-        print(f'  ✓ API responded OK. {len(matches_list)} finished matches in response (resultSet count: {total})')
+        print(f'  ✓ API OK')
     except Exception as e:
         traceback.print_exc()
         fail('STEP 2', f'{type(e).__name__}: {e}')
 
-    # ---------------------------------------------------------------
-    # STEP 3: Test Supabase connection
-    # ---------------------------------------------------------------
+    # STEP 3: Supabase test
     print('\n[STEP 3] Testing Supabase connection...')
     try:
-        test_url = f'{SUPABASE_URL}/rest/v1/matches'
-        print(f'  GET {test_url} (limit=1)')
         response = requests.get(
-            test_url, headers=supabase_headers(),
-            params={'select': 'id', 'limit': '1'}, timeout=30
+            f'{SUPABASE_URL}/rest/v1/matches',
+            headers=supabase_headers(),
+            params={'select': 'id', 'limit': '1'},
+            timeout=30,
         )
         print(f'  HTTP status: {response.status_code}')
         if response.status_code != 200:
-            print(f'  Response body (first 500 chars): {response.text[:500]}')
+            print(f'  Response body: {response.text[:500]}')
             fail('STEP 3', f'Supabase returned HTTP {response.status_code}')
-        print(f'  ✓ Supabase connection OK')
+        print(f'  ✓ Supabase OK')
     except Exception as e:
         traceback.print_exc()
         fail('STEP 3', f'{type(e).__name__}: {e}')
 
-    # ---------------------------------------------------------------
-    # STEP 4: Fetch unscored matches from DB
-    # ---------------------------------------------------------------
-    print('\n[STEP 4] Fetching unscored matches from DB...')
+    # STEP 4: fetch all matches + scored ids
+    print('\n[STEP 4] Fetching matches from DB...')
     try:
-        unscored = get_unscored_matches_from_db()
-        print(f'  ✓ Found {len(unscored)} unscored matches in DB')
+        all_matches, scored_ids = get_all_matches_from_db()
+        print(f'  ✓ {len(all_matches)} total matches, {len(scored_ids)} already scored')
     except Exception as e:
         traceback.print_exc()
         fail('STEP 4', f'{type(e).__name__}: {e}')
 
-    # Filter to non-placeholder matches
-    db_lookup = {}
-    for m in unscored:
+    # Build two lookups: all real matches (for distinguishing scored-vs-name-miss) and unscored only
+    all_lookup = {}
+    unscored_lookup = {}
+    for m in all_matches:
         if is_placeholder(m['home_team']) or is_placeholder(m['away_team']):
             continue
         key = (m['home_team'].lower(), m['away_team'].lower())
-        db_lookup[key] = m
-    print(f'  Filtered to {len(db_lookup)} non-placeholder unscored matches')
+        all_lookup[key] = m
+        if m['id'] not in scored_ids:
+            unscored_lookup[key] = m
+    print(f'  {len(all_lookup)} non-placeholder matches; {len(unscored_lookup)} are unscored')
 
-    if not db_lookup:
-        msg = 'No unscored real matches found - nothing to do'
+    if not unscored_lookup:
+        msg = 'No unscored real matches found'
         print(f'\n{msg}')
         log_to_automation_log('auto_score', 'success', msg, 0)
         return
 
-    # ---------------------------------------------------------------
-    # STEP 5: Fetch finished matches for scoring window
-    # ---------------------------------------------------------------
+    # STEP 5: fetch finished from API
     print('\n[STEP 5] Fetching finished matches from football-data.org (7-day window)...')
     today = datetime.now(timezone.utc).date()
     date_from = (today - timedelta(days=7)).isoformat()
     date_to = (today + timedelta(days=1)).isoformat()
     try:
         api_matches = fetch_finished_matches(date_from, date_to)
-        print(f'  ✓ Got {len(api_matches)} finished matches in date window ({date_from} to {date_to})')
+        print(f'  ✓ {len(api_matches)} finished matches in window ({date_from} to {date_to})')
     except Exception as e:
         traceback.print_exc()
         fail('STEP 5', f'{type(e).__name__}: {e}')
 
-    # ---------------------------------------------------------------
-    # STEP 6: Match API results to DB matches and score
-    # ---------------------------------------------------------------
-    print('\n[STEP 6] Matching API results to DB and scoring...')
+    # STEP 6: score
+    print('\n[STEP 6] Matching API results to DB...')
     scored_count = 0
-    unmatched_count = 0
+    already_scored_count = 0
+    name_miss_count = 0
+    name_miss_details = []
 
     for api_match in api_matches:
         try:
@@ -255,19 +239,27 @@ def main():
             away_name_api = api_match['awayTeam']['name']
             home_name = map_team_name(home_name_api)
             away_name = map_team_name(away_name_api)
-
             key = (home_name.lower(), away_name.lower())
-            db_match = db_lookup.get(key)
 
-            if not db_match:
-                print(f'  Skip: no DB match for {home_name} vs {away_name} (API names: {home_name_api}, {away_name_api})')
-                unmatched_count += 1
+            # Already scored?
+            if key in all_lookup and key not in unscored_lookup:
+                print(f'  ✓ Already scored: {home_name} vs {away_name}')
+                already_scored_count += 1
                 continue
 
+            # Not in any DB lookup = name mismatch
+            db_match = unscored_lookup.get(key)
+            if not db_match:
+                msg = f'NAME MISS: API "{home_name_api}" vs "{away_name_api}" -> mapped "{home_name}" vs "{away_name}", no DB equivalent'
+                print(f'  ⚠ {msg}')
+                name_miss_details.append(msg)
+                name_miss_count += 1
+                continue
+
+            # Score it
             home_score = api_match['score']['fullTime']['home']
             away_score = api_match['score']['fullTime']['away']
             winner_api = api_match['score']['winner']
-
             if winner_api == 'HOME_TEAM':
                 winner = home_name
             elif winner_api == 'AWAY_TEAM':
@@ -278,20 +270,24 @@ def main():
                 print(f'  Skip: unknown winner value {winner_api}')
                 continue
 
-            success = insert_match_result(db_match['id'], winner, home_score, away_score)
-            if success:
+            if insert_match_result(db_match['id'], winner, home_score, away_score):
                 print(f'  Scored: {home_name} {home_score}-{away_score} {away_name} (winner: {winner})')
                 scored_count += 1
         except Exception as e:
             print(f'  ERROR processing API match: {type(e).__name__}: {e}')
             continue
 
-    # ---------------------------------------------------------------
-    # Done
-    # ---------------------------------------------------------------
-    summary = f'Scored {scored_count} matches; {unmatched_count} API matches had no DB equivalent'
+    summary = (
+        f'Scored {scored_count} new; '
+        f'{already_scored_count} already scored (correctly skipped); '
+        f'{name_miss_count} name mismatches need mapping'
+    )
     print('\n' + '=' * 60)
     print(f'SUCCESS: {summary}')
+    if name_miss_details:
+        print('\nName mismatches:')
+        for d in name_miss_details:
+            print(f'  - {d}')
     print('=' * 60)
     log_to_automation_log('auto_score', 'success', summary, scored_count)
 
