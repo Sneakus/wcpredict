@@ -112,7 +112,9 @@ def log_to_automation_log(script_name, status, message, records_processed=0):
             'message': message[:500],
             'records_processed': records_processed,
         }
-        requests.post(url, headers=headers, json=payload, timeout=10)
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        if r.status_code >= 400:
+            print(f'  WARN: automation_log POST failed: {r.status_code} {r.text[:300]}')
     except Exception as e:
         print(f'  WARN: Failed to log to automation_log: {e}')
 
