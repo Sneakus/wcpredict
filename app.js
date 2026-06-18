@@ -3,6 +3,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+const ACC_LEADERBOARD_MIN_SCORED = 5
+
 const TEAMS = [
   { name: 'Brazil',    iso: 'BR',     color: '#639922' },
   { name: 'France',    iso: 'FR',     color: '#185FA5' },
@@ -1182,8 +1184,8 @@ function buildLeaderboards() {
   }
 
   const allAccSorted = Object.values(nationData)
-    .filter(d => d.acc !== null)
-    .sort((a, b) => b.acc - a.acc || (b.correct || 0) - (a.correct || 0))
+    .filter(d => d.acc !== null && d.total >= ACC_LEADERBOARD_MIN_SCORED)
+    .sort((a, b) => b.acc - a.acc || (b.total || 0) - (a.total || 0))
 
   const topAccRows = allAccSorted.slice(0, 6)
   const moreAccRows = allAccSorted.slice(6)
@@ -1239,6 +1241,7 @@ function buildNationDataEntry(iso, d) {
     pick: topPick ? topPick[0] : null,
     acc: d.total > 0 ? Math.round(d.correct / d.total * 100) : null,
     correct: d.correct,
+    total: d.total,
     matchPicks: d.matchPicks,
     matchPickLatest: d.matchPickLatest || {},
     tournamentPicks: d.tournamentPicks,
