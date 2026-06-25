@@ -111,53 +111,9 @@ def get_existing_auto_seed_match_ids(match_ids: List[str]) -> set:
     return {r['match_id'] for r in response.json()}
 
 
-def fetch_odds_for_matches(api_team_pairs: List) -> Dict:
-    """Fetch odds from football-data.org for given matches.
-    
-    Returns dict keyed by (home_lower, away_lower) -> {home_prob, draw_prob, away_prob}.
-    Falls back to neutral odds if API doesn't return odds.
-    """
-    if not FOOTBALL_DATA_API_KEY:
-        return {}
-    
-    url = f'https://api.football-data.org/v4/competitions/{COMPETITION_ID}/matches'
-    headers = {'X-Auth-Token': FOOTBALL_DATA_API_KEY}
-    today = datetime.now(timezone.utc).date()
-    params = {
-        'dateFrom': today.isoformat(),
-        'dateTo': (today + timedelta(days=3)).isoformat(),
-    }
-    
-    try:
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
-        api_matches = response.json().get('matches', [])
-    except Exception as e:
-        print(f'Warning: could not fetch odds: {e}')
-        return {}
-    
-    odds_dict = {}
-    for am in api_matches:
-        try:
-            home_raw = am.get('homeTeam', {}).get('name')
-            away_raw = am.get('awayTeam', {}).get('name')
-            if not home_raw or not away_raw:
-                continue
-            home_name = API_TO_DB_TEAM_MAP.get(home_raw, home_raw)
-            away_name = API_TO_DB_TEAM_MAP.get(away_raw, away_raw)
-            if not home_name or not away_name:
-                continue
-            key = (home_name.lower(), away_name.lower())
-            odds_dict[key] = {
-                'home_prob': 0.40,
-                'draw_prob': 0.25,
-                'away_prob': 0.35,
-            }
-        except Exception as e:
-            print(f'Warning: skipping malformed API match entry: {e}')
-            continue
-    
-    return odds_dict
+def fetch_odds_for_matches(api_team_pairs):
+    """Disabled - always returns empty dict, forcing heuristic odds fallback."""
+    return {}
 
 
 def estimate_odds_heuristic(home_team: str, away_team: str) -> Dict:
