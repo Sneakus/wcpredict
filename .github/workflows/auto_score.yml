@@ -2,7 +2,7 @@ name: Auto-score finished matches
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+    - cron: '23 5 * * *'  # Daily at 05:23 UTC (off-peak)
   workflow_dispatch:
 
 jobs:
